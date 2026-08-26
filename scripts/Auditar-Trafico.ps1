@@ -633,12 +633,10 @@ try {
             -Status "Muestreando red y rendimiento - faltan $($tiempoRestante.ToString('mm\:ss'))" `
             -PercentComplete $porcentaje
 
-        $anchoBarra = 20
-        $completado = [Math]::Max(0, [Math]::Min($anchoBarra, [Math]::Floor(($porcentaje / 100) * $anchoBarra)))
-        $pendiente = $anchoBarra - $completado
-        $barraStr = ('#' * $completado) + ('-' * $pendiente)
-        $statusStr = "`r [$barraStr] $porcentaje% | Muestra $numeroMuestra | Restante: $($tiempoRestante.ToString('mm\:ss')) | ['Q' para parar]"
-        Write-Host $statusStr -NoNewline -ForegroundColor Cyan
+        $colorProgreso = if ($porcentaje -lt 34) { 'Red' } elseif ($porcentaje -lt 67) { 'Yellow' } else { 'Green' }
+        $statusStr = "`r  Progreso: {0,3}%  |  Muestra {1,-4}  |  Restante: {2}  |  Presione 'Q' para detener   " -f `
+            $porcentaje, $numeroMuestra, $tiempoRestante.ToString('mm\:ss')
+        Write-Host $statusStr -NoNewline -ForegroundColor $colorProgreso
 
         if ([System.Console]::KeyAvailable) {
             $teclaInfo = [System.Console]::ReadKey($true)
