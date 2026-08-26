@@ -23,11 +23,11 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "& {
     $script = Join-Path $PSScriptRoot 'Auditar-Trafico.ps1'
     if (-not (Test-Path -LiteralPath $script)) { $script = '.\Auditar-Trafico.ps1' }
 
-    function Write-Linea([string]$c='─', [ConsoleColor]$col=[ConsoleColor]::Cyan) {
+    function Write-Linea([string]$c='─', [System.ConsoleColor]$col=[System.ConsoleColor]::Cyan) {
         Write-Host ($c * 68) -ForegroundColor $col
     }
 
-    function Write-Titulo([string]$txt, [ConsoleColor]$col=[ConsoleColor]::Cyan) {
+    function Write-Titulo([string]$txt, [System.ConsoleColor]$col=[System.ConsoleColor]::Cyan) {
         Write-Linea -c '─' -col $col
         $pad = [Math]::Max(0, [Math]::Floor((68 - $txt.Length) / 2))
         Write-Host ((' ' * $pad) + $txt) -ForegroundColor $col
@@ -56,12 +56,12 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "& {
 
     function Test-Pregunta([string]$txt) {
         Write-Host '  ?  ' -NoNewline -ForegroundColor Cyan
-        $resp = Read-Host '$txt (s/n)'
+        $resp = Read-Host "$txt (s/n)"
         return ($resp.Trim().ToLower() -eq 's')
     }
 
     function Write-Pausar {
-        Write-Host '`n  Presione Enter para continuar...' -ForegroundColor Gray
+        Write-Host "`n  Presione Enter para continuar..." -ForegroundColor Gray
         [void][System.Console]::ReadLine()
     }
 
@@ -79,10 +79,10 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "& {
         Write-Titulo 'SISTEMA DE DIAGNOSTICO Y SOPORTE PC' -col Cyan
         Write-Host ''
 
-        $colNum   = [ConsoleColor]::Cyan
-        $colIcon  = [ConsoleColor]::White
-        $colLabel = [ConsoleColor]::White
-        $colDesc  = [ConsoleColor]::Gray
+        $colNum   = 'Cyan'
+        $colIcon  = 'White'
+        $colLabel = 'White'
+        $colDesc  = 'Gray'
 
         foreach ($k in $opciones.Keys) {
             $item = $opciones[$k]

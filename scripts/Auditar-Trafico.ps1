@@ -346,12 +346,12 @@ function Registrar-ErrorAuditoria {
 }
 
 function Write-Linea {
-    param([string]$Caracter = '─', [ConsoleColor]$Color = [ConsoleColor]::Cyan)
+    param([string]$Caracter = '─', [System.ConsoleColor]$Color = [System.ConsoleColor]::Cyan)
     Write-Host ($Caracter * 72) -ForegroundColor $Color
 }
 
 function Write-Titulo {
-    param([string]$Texto, [ConsoleColor]$Color = [ConsoleColor]::Cyan)
+    param([string]$Texto, [System.ConsoleColor]$Color = [System.ConsoleColor]::Cyan)
     Write-Linea -Caracter '─' -Color $Color
     $pad = [Math]::Max(0, [Math]::Floor((72 - $Texto.Length) / 2))
     Write-Host ((' ' * $pad) + $Texto) -ForegroundColor $Color
