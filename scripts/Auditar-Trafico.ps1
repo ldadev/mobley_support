@@ -1147,6 +1147,7 @@ catch {
 }
 
 $impresoras = @()
+$impresorasRed = New-Object 'System.Collections.Generic.List[object]'
 $controladoresImpresora = @()
 $trabajosImpresion = @()
 $servicioImpresion = @()
@@ -1164,8 +1165,117 @@ try {
     $servicioImpresion = @(Get-Service Spooler |
         Select-Object Name, DisplayName, Status, StartType)
 
+    $puertosImpresora = @{}
+    try {
+        Get-PrinterPort -ErrorAction SilentlyContinue | ForEach-Object {
+            if ($_.Name) { $puertosImpresora[$_.Name] = $_ }
+        }
+    }
+    catch {}
+
+    foreach ($imp in $impresoras) {
+        $esRed = $false
+        $hostRed = $null
+        $tipoConexion = 'Local'
+        $puertoRaw = [string]$imp.PortName
+
+        if ([string]$imp.Type -eq 'Network' -or $imp.Name -like '\\*' -or $puertoRaw -like '\\*') {
+            $esRed = $true
+            $tipoConexion = 'Compartida (SMB/UNC)'
+            if ($imp.Name -like '\\*') {
+                $hostRed = ($imp.Name -split '\\')[2]
+            }
+            elseif ($puertoRaw -like '\\*') {
+                $hostRed = ($puertoRaw -split '\\')[2]
+            }
+        }
+        elseif ($puertosImpresora.ContainsKey($puertoRaw)) {
+            $pObj = $puertosImpresora[$puertoRaw]
+            if ($pObj.PrinterHostAddress) {
+                $esRed = $true
+                $tipoConexion = 'TCP/IP o WSD'
+                $hostRed = [string]$pObj.PrinterHostAddress
+            }
+            elseif ($pObj.Description -match 'TCP/IP|WSD|Standard TCP' -or $puertoRaw -match '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$') {
+                $esRed = $true
+                $tipoConexion = 'TCP/IP'
+                $hostRed = $puertoRaw
+            }
+        }
+        elseif ($puertoRaw -match '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$') {
+            $esRed = $true
+            $tipoConexion = 'TCP/IP Directo'
+            $hostRed = $puertoRaw
+        }
+        elseif ($puertoRaw -like 'WSD-*' -or $puertoRaw -like 'IP_*') {
+            $esRed = $true
+            $tipoConexion = 'WSD / IP Port'
+            if ($puertoRaw -match '(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})') {
+                $hostRed = $Matches[1]
+            }
+        }
+
+        if ($esRed) {
+            $pingOk = $false
+            $pingMs = $null
+            $puertoImpAbierto = $false
+            $puertoAProbar = if ($tipoConexion -like '*SMB*') { 445 } else { 9100 }
+
+            if ($hostRed) {
+                $pingTest = @(Test-Connection -ComputerName $hostRed -Count 2 -ErrorAction SilentlyContinue)
+                if ($pingTest.Count -gt 0) {
+                    $pingOk = $true
+                    $pingMs = [Math]::Round(($pingTest | Measure-Object ResponseTime -Average).Average, 2)
+                }
+
+                try {
+                    $client = New-Object System.Net.Sockets.TcpClient
+                    $ar = $client.BeginConnect($hostRed, $puertoAProbar, $null, $null)
+                    $wait = $ar.AsyncWaitHandle.WaitOne(1500, $false)
+                    if ($wait -and $client.Connected) {
+                        $puertoImpAbierto = $true
+                        $client.EndConnect($ar)
+                    }
+                    $client.Close()
+                }
+                catch {
+                    $puertoImpAbierto = $false
+                }
+            }
+
+            $estadoRedDetalle = if (-not $hostRed) {
+                "Host/IP no identificado en puerto $($puertoRaw)"
+            }
+            elseif ($pingOk -and $puertoImpAbierto) {
+                "Alcanzable (Ping $pingMs ms | Puerto $puertoAProbar Abierto)"
+            }
+            elseif ($pingOk) {
+                "Responde Ping ($pingMs ms) pero puerto $puertoAProbar cerrado"
+            }
+            else {
+                "Inalcanzable (Sin respuesta ICMP/Ping en $hostRed)"
+            }
+
+            $impresorasRed.Add([pscustomobject]@{
+                Nombre          = $imp.Name
+                TipoConexion    = $tipoConexion
+                Puerto          = $puertoRaw
+                HostIP          = if ($hostRed) { $hostRed } else { 'Desconocido' }
+                PingExitoso     = $pingOk
+                LatenciaMs      = if ($null -ne $pingMs) { $pingMs } else { '-' }
+                PuertoImpresion = "$puertoAProbar: " + (if ($puertoImpAbierto) { 'Abierto' } else { 'Cerrado' })
+                ModoSinConexion = $imp.WorkOffline
+                DiagnosticoRed  = $estadoRedDetalle
+            })
+        }
+    }
+
     $impresoras |
         Export-Csv (Join-Path $carpeta 'impresoras-instaladas.csv') -NoTypeInformation -Encoding UTF8
+    if ($impresorasRed.Count -gt 0) {
+        $impresorasRed |
+            Export-Csv (Join-Path $carpeta 'impresoras-red.csv') -NoTypeInformation -Encoding UTF8
+    }
     $controladoresImpresora |
         Export-Csv (Join-Path $carpeta 'controladores-impresora.csv') -NoTypeInformation -Encoding UTF8
     $trabajosImpresion |
@@ -1271,6 +1381,16 @@ if ($servicioImpresion.Count -gt 0) {
         Control   = 'Servicio de cola de impresión'
         Resultado = if ($spoolerActivo) { 'Cumple' } else { 'Revisar' }
         Detalle   = "Estado=$($servicioImpresion[0].Status); inicio=$($servicioImpresion[0].StartType)"
+    })
+}
+
+foreach ($impRed in $impresorasRed) {
+    $resImp = if ($impRed.PingExitoso -and -not $impRed.ModoSinConexion) { 'Cumple' } else { 'Revisar' }
+    $controlesSeguridad.Add([pscustomobject]@{
+        Area      = 'Impresión de Red'
+        Control   = "Impresora de red: $($impRed.Nombre)"
+        Resultado = $resImp
+        Detalle   = "Host/IP=$($impRed.HostIP); SinConexion=$($impRed.ModoSinConexion); Diagnóstico=$($impRed.DiagnosticoRed)"
     })
 }
 
@@ -1888,6 +2008,7 @@ $contenido = @(
     (Convertir-FragmentoHtml @($controladoresProblema) 'Dispositivos y controladores con problemas' 'No se encontraron dispositivos con códigos de error activos.')
     (Convertir-FragmentoHtml @($eventosControladores | Select-Object -First 100) 'Eventos recientes de controladores' 'No se encontraron eventos de controladores en el periodo consultado.')
     (Convertir-FragmentoHtml @($impresoras) 'Impresoras instaladas' 'No se encontraron impresoras instaladas.')
+    (Convertir-FragmentoHtml ($impresorasRed.ToArray()) 'Estado y diagnóstico de impresoras de red' 'No se detectaron impresoras de red instaladas o no hay puertos de red asociados.')
     (Convertir-FragmentoHtml @($servicioImpresion) 'Estado del servicio de impresión')
     (Convertir-FragmentoHtml @($trabajosImpresion) 'Trabajos en las colas de impresión' 'No hay trabajos pendientes.')
     (Convertir-FragmentoHtml @($eventosImpresion | Select-Object -First 100) 'Eventos recientes de impresión' 'No se encontraron eventos de impresión en el periodo consultado.')
