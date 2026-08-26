@@ -629,10 +629,6 @@ try {
         $porcentaje = [Math]::Min(99, [Math]::Floor(($transcurrido / $totalSegundos) * 100))
         $tiempoRestante = [TimeSpan]::FromSeconds([Math]::Max(0, [Math]::Ceiling($restante)))
 
-        Write-Progress -Id 1 -Activity "Diagnostico $Modo" `
-            -Status "Muestreando red y rendimiento - faltan $($tiempoRestante.ToString('mm\:ss'))" `
-            -PercentComplete $porcentaje
-
         $colorProgreso = if ($porcentaje -lt 34) { 'Red' } elseif ($porcentaje -lt 67) { 'Yellow' } else { 'Green' }
         $statusStr = "`r  Progreso: {0,3}%  |  Muestra {1,-4}  |  Restante: {2}  |  Presione 'Q' para detener   " -f `
             $porcentaje, $numeroMuestra, $tiempoRestante.ToString('mm\:ss')
@@ -683,7 +679,6 @@ finally {
     }
 }
 
-Write-Progress -Id 1 -Activity "Diagnóstico $Modo" -Completed
 Write-Etapa 'Muestreo finalizado. Analizando seguridad y aplicaciones...'
 $fin = Get-Date
 $archivoConexiones = Join-Path $carpeta 'conexiones.csv'
