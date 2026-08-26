@@ -33,13 +33,17 @@ param(
     [ValidateRange(1, 3650)]
     [int]$DiasAvisoCertificado = 60,
 
-    [string]$DirectorioSalida = 'C:\AuditoriaRed',
+    [string]$DirectorioSalida = '',
 
     [switch]$SinCapturaPktmon,
 
     [switch]$IncluirVerificacionSistema,
 
-    [switch]$EliminarTemporales
+    [switch]$EliminarTemporales,
+
+    [switch]$AutoEliminarAlCerrar,
+
+    [switch]$NoAutoAbrirReporte
 )
 
 Set-StrictMode -Version 2.0
@@ -215,8 +219,61 @@ function Remove-ArchivosTemporalesAntiguos {
     }
 }
 
+function Finalizar-InformeYLimpiar {
+    param(
+        [Parameter(Mandatory)][string]$RutaInforme,
+        [Parameter(Mandatory)][string]$CarpetaAuditoria,
+        [bool]$AutoEliminar = $false,
+        [bool]$AbrirReporte = $true
+    )
+
+    if ($AbrirReporte -and (Test-Path -LiteralPath $RutaInforme)) {
+        try {
+            Start-Process -FilePath $RutaInforme -ErrorAction SilentlyContinue
+        }
+        catch {}
+    }
+
+    if ($AutoEliminar) {
+        Write-Host ''
+        Write-Host '===============================================================================' -ForegroundColor Cyan
+        Write-Host '                   INFORME Y DIAGNOSTICO FINALIZADOS                           ' -ForegroundColor Yellow
+        Write-Host '===============================================================================' -ForegroundColor Cyan
+        Write-Host 'El informe HTML se ha abierto en su navegador web:' -ForegroundColor White
+        Write-Host " -> $RutaInforme" -ForegroundColor Green
+        Write-Host ''
+        Write-Host '[!] NOTA: Los archivos de evidencias e informe son TEMPORALES.' -ForegroundColor Yellow
+        Write-Host '    Permaneceran disponibles MIENTRAS esta ventana continue abierta.' -ForegroundColor Yellow
+        Write-Host ''
+        Write-Host '>>> PRESIONE CUALQUIER TECLA (O ENTER) PARA SALIR Y ELIMINAR' -ForegroundColor Cyan
+        Write-Host '    TODOS LOS ARCHIVOS TEMPORALES DE DIAGNOSTICO DE ESTE EQUIPO...' -ForegroundColor Cyan
+        Write-Host '===============================================================================' -ForegroundColor Cyan
+        Write-Host ''
+
+        try {
+            $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+        }
+        catch {
+            Read-Host 'Presione ENTER para salir y eliminar temporales'
+        }
+
+        Write-Host 'Eliminando archivos temporales de auditoria...' -ForegroundColor Yellow
+        Remove-Item -LiteralPath $CarpetaAuditoria -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host 'Limpieza completada exitosamente.' -ForegroundColor Green
+    }
+}
+
 if (-not (Test-Administrador)) {
     throw 'Ejecute PowerShell como administrador para recopilar toda la evidencia.'
+}
+
+if ([string]::IsNullOrWhiteSpace($DirectorioSalida)) {
+    if ($AutoEliminarAlCerrar) {
+        $DirectorioSalida = $env:TEMP
+    }
+    else {
+        $DirectorioSalida = 'C:\AuditoriaRed'
+    }
 }
 
 $inicio = Get-Date
@@ -339,6 +396,7 @@ th { background: #e2e8f0; }
 
     Write-Host "Limpieza finalizada. Informe: $archivoInformeLimpieza" -ForegroundColor Green
     Write-Host "Archivos eliminados: $eliminadosTotal; espacio liberado: $([Math]::Round($liberadosTotal, 2)) MB"
+    Finalizar-InformeYLimpiar -RutaInforme $archivoInformeLimpieza -CarpetaAuditoria $carpeta -AutoEliminar $AutoEliminarAlCerrar -AbrirReporte (-not $NoAutoAbrirReporte)
     return
 }
 
@@ -480,13 +538,31 @@ try {
         $transcurrido = [Math]::Max(0, $totalSegundos - $restante)
         $porcentaje = [Math]::Min(99, [Math]::Floor(($transcurrido / $totalSegundos) * 100))
         $tiempoRestante = [TimeSpan]::FromSeconds([Math]::Max(0, [Math]::Ceiling($restante)))
-        Write-Progress -Id 1 -Activity "Diagnóstico $Modo" `
+
+        Write-Progress -Id 1 -Activity "Diagnostico $Modo" `
             -Status "Muestreando red y rendimiento - faltan $($tiempoRestante.ToString('mm\:ss'))" `
             -PercentComplete $porcentaje
+
+        $anchoBarra = 20
+        $completado = [Math]::Max(0, [Math]::Min($anchoBarra, [Math]::Floor(($porcentaje / 100) * $anchoBarra)))
+        $pendiente = $anchoBarra - $completado
+        $barraStr = ('#' * $completado) + ('-' * $pendiente)
+        $statusStr = "`r [$barraStr] $porcentaje% | Muestra $numeroMuestra | Restante: $($tiempoRestante.ToString('mm\:ss')) | ['Q' para parar]"
+        Write-Host $statusStr -NoNewline -ForegroundColor Cyan
+
+        if ([Console]::KeyAvailable) {
+            $teclaInfo = [Console]::ReadKey($true)
+            if ($teclaInfo.Key -eq 'Q' -or $teclaInfo.Key -eq 'Escape') {
+                Write-Host "`r`n`n[!] Muestreo detenido por el usuario. Generando informe con las muestras obtenidas..." -ForegroundColor Yellow
+                break
+            }
+        }
+
         if ($restante -gt 0) {
             Start-Sleep -Seconds ([Math]::Min($IntervaloSegundos, [Math]::Ceiling($restante)))
         }
     }
+    Write-Host ''
 }
 finally {
     if ($pktmonActivo) {
@@ -1869,3 +1945,4 @@ $hashes | Export-Csv (Join-Path $carpeta 'hashes-sha256.csv') -NoTypeInformation
 
 Write-Host "Auditoría finalizada. Informe: $archivoInforme" -ForegroundColor Green
 Write-Host "Indicadores para revisión: $($indicadores.Count)"
+Finalizar-InformeYLimpiar -RutaInforme $archivoInforme -CarpetaAuditoria $carpeta -AutoEliminar $AutoEliminarAlCerrar -AbrirReporte (-not $NoAutoAbrirReporte)
