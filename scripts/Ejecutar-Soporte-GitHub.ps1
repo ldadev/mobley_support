@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 
 [CmdletBinding()]
 param()
@@ -14,6 +14,10 @@ $archivos = @(
     [pscustomobject]@{
         Nombre = 'Auditar-Trafico.ps1'
         Url    = "$repoRawBase/scripts/Auditar-Trafico.ps1"
+    },
+    [pscustomobject]@{
+        Nombre = 'Menu-Soporte.ps1'
+        Url    = "$repoRawBase/scripts/Menu-Soporte.ps1"
     },
     [pscustomobject]@{
         Nombre = 'Ejecutar-Soporte.cmd'
@@ -50,7 +54,8 @@ $tokens = $null
     [ref]$erroresSintaxis
 )
 if ($erroresSintaxis.Count -gt 0) {
-    throw "El script descargado contiene errores de sintaxis: $($erroresSintaxis[0].Message)"
+    $primerError = $erroresSintaxis[0]
+    throw "El script descargado contiene errores de sintaxis en línea $($primerError.Extent.StartLineNumber), columna $($primerError.Extent.StartColumnNumber): $($primerError.Message)"
 }
 
 $lanzador = Join-Path $destino 'Ejecutar-Soporte.cmd'
