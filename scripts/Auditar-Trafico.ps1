@@ -481,16 +481,46 @@ th { background: #e2e8f0; }
     return
 }
 
+if ($LimpiarColaImpresion) {
+    Write-Etapa 'Iniciando liberación de la cola de impresión...'
+    $resultadoLimpiezaSpooler = Clear-ColaImpresionSpooler
+    @($resultadoLimpiezaSpooler) |
+        Export-Csv (Join-Path $carpeta 'limpieza-cola-impresion.csv') -NoTypeInformation -Encoding UTF8
+
+    $estiloSpooler = @'
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; margin: 32px; color: #1f2937; }
+h1, h2 { color: #17365d; }
+table { border-collapse: collapse; width: 100%; margin-bottom: 24px; }
+th, td { border: 1px solid #cbd5e1; padding: 6px; text-align: left; }
+th { background: #e2e8f0; }
+.nota { background: #fff7d6; border-left: 4px solid #d69e2e; padding: 12px; }
+</style>
+'@
+    $contenidoSpooler = @(
+        '<h1>Informe de soporte - Liberación de la cola de impresión</h1>'
+        "<p class='nota'>Se detuvo el servicio Spooler, se eliminaron los archivos de trabajos pendientes en la cola (System32\spool\PRINTERS) y se reinició el servicio.</p>"
+        (Convertir-FragmentoHtml @($resultadoLimpiezaSpooler) 'Resultado')
+    ) -join "`r`n"
+
+    $archivoInformeSpooler = Join-Path $carpeta 'informe-de-soporte.html'
+    Write-Etapa 'Generando el informe...'
+    ConvertTo-Html -Title 'Informe de soporte - Cola de impresión' -Head $estiloSpooler -Body $contenidoSpooler |
+        Out-File $archivoInformeSpooler -Encoding utf8
+
+    $hashesSpooler = @(Get-ChildItem $carpeta -File |
+        Where-Object Name -ne 'hashes-sha256.csv' |
+        Get-FileHash -Algorithm SHA256 |
+        Select-Object Path, Algorithm, Hash)
+    $hashesSpooler | Export-Csv (Join-Path $carpeta 'hashes-sha256.csv') -NoTypeInformation -Encoding UTF8
+
+    Write-Host "Liberación de cola de impresión finalizada. Informe: $archivoInformeSpooler" -ForegroundColor Green
+    Finalizar-InformeYLimpiar -RutaInforme $archivoInformeSpooler -CarpetaAuditoria $carpeta -AutoEliminar $AutoEliminarAlCerrar -AbrirReporte (-not $NoAutoAbrirReporte)
+    return
+}
+
 Write-Host ''
 Write-Host "Modo: $Modo | Duración del muestreo: $DuracionMinutos minuto(s)" -ForegroundColor Yellow
-
-if ($LimpiarColaImpresion) {
-    $resultadoLimpiezaSpooler = Clear-ColaImpresionSpooler
-    if ($null -ne $resultadoLimpiezaSpooler) {
-        @($resultadoLimpiezaSpooler) |
-            Export-Csv (Join-Path $carpeta 'limpieza-cola-impresion.csv') -NoTypeInformation -Encoding UTF8
-    }
-}
 
 Write-Etapa 'Recopilando configuración inicial del equipo...'
 try {

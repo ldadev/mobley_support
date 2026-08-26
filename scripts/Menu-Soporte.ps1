@@ -53,7 +53,7 @@ $opciones = [ordered]@{
     '2' = @{ Icon = '[C]'; Label = 'Diagnostico Completo'; Desc = '(Extenso - SMART, parches, DISM/SFC, eventos)'; Params = @{ Modo = 'Completo'; IncluirVerificacionSistema = $true; AutoEliminarAlCerrar = $true } }
     '3' = @{ Icon = '[N]'; Label = 'Auditoria de Red'; Desc = '(30 min - Muestreo de conexiones y trafico TCP/ETL)'; Params = @{ Modo = 'Red'; AutoEliminarAlCerrar = $true } }
     '4' = @{ Icon = '[L]'; Label = 'Limpieza de Temporales'; Desc = '(Libera espacio en discos de cache antiguos)'; Params = @{ Modo = 'Limpieza'; AutoEliminarAlCerrar = $true } }
-    '5' = @{ Icon = '[P]'; Label = 'Liberar Cola Impresion'; Desc = '(Cancela trabajos atascados y reinicia Spooler)'; Params = @{ Modo = 'Rapido'; LimpiarColaImpresion = $true; AutoEliminarAlCerrar = $true } }
+    '5' = @{ Icon = '[P]'; Label = 'Liberar Cola Impresion'; Desc = '(Solo: cancela trabajos atascados y reinicia Spooler)'; Params = @{ LimpiarColaImpresion = $true; AutoEliminarAlCerrar = $true } }
 }
 
 while ($true) {
