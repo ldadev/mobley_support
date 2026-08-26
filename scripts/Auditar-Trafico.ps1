@@ -238,30 +238,29 @@ function Finalizar-InformeYLimpiar {
 
     if ($AutoEliminar) {
         Write-Host ''
-        Write-Host '===============================================================================' -ForegroundColor Cyan
-        Write-Host '                   INFORME Y DIAGNOSTICO FINALIZADOS                           ' -ForegroundColor Yellow
-        Write-Host '===============================================================================' -ForegroundColor Cyan
-        Write-Host 'El informe HTML se ha abierto en su navegador web:' -ForegroundColor White
-        Write-Host " -> $RutaInforme" -ForegroundColor Green
+        Write-Titulo 'INFORME Y DIAGNOSTICO FINALIZADOS' -Color Yellow
+        Write-Info 'El informe HTML se ha abierto en su navegador web:'
+        Write-Host "     -> $RutaInforme" -ForegroundColor Green
         Write-Host ''
-        Write-Host '[!] NOTA: Los archivos de evidencias e informe son TEMPORALES.' -ForegroundColor Yellow
-        Write-Host '    Permaneceran disponibles MIENTRAS esta ventana continue abierta.' -ForegroundColor Yellow
+        Write-Warn 'NOTA: Los archivos de evidencias e informe son TEMPORALES.'
+        Write-Warn 'Permaneceran disponibles MIENTRAS esta ventana continue abierta.'
         Write-Host ''
-        Write-Host '>>> PRESIONE CUALQUIER TECLA (O ENTER) PARA SALIR Y ELIMINAR' -ForegroundColor Cyan
-        Write-Host '    TODOS LOS ARCHIVOS TEMPORALES DE DIAGNOSTICO DE ESTE EQUIPO...' -ForegroundColor Cyan
-        Write-Host '===============================================================================' -ForegroundColor Cyan
+        Write-Linea -Caracter '─' -Color Cyan
+        Write-Host '  >>> PRESIONE ENTER (O CUALQUIER TECLA) PARA SALIR Y ELIMINAR' -ForegroundColor Cyan
+        Write-Host '      TODOS LOS ARCHIVOS TEMPORALES DE DIAGNOSTICO DE ESTE EQUIPO...' -ForegroundColor Cyan
+        Write-Linea -Caracter '─' -Color Cyan
         Write-Host ''
 
         try {
             $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
         }
         catch {
-            Read-Host 'Presione ENTER para salir y eliminar temporales'
+            Read-Host '  Presione Enter para salir y eliminar temporales'
         }
 
-        Write-Host 'Eliminando archivos temporales de auditoria...' -ForegroundColor Yellow
+        Write-Warn 'Eliminando archivos temporales de auditoria...'
         Remove-Item -LiteralPath $CarpetaAuditoria -Recurse -Force -ErrorAction SilentlyContinue
-        Write-Host 'Limpieza completada exitosamente.' -ForegroundColor Green
+        Write-Ok 'Limpieza completada exitosamente.'
     }
 }
 
@@ -346,9 +345,47 @@ function Registrar-ErrorAuditoria {
     })
 }
 
+function Write-Linea {
+    param([string]$Caracter = '─', [ConsoleColor]$Color = [ConsoleColor]::Cyan)
+    Write-Host ($Caracter * 72) -ForegroundColor $Color
+}
+
+function Write-Titulo {
+    param([string]$Texto, [ConsoleColor]$Color = [ConsoleColor]::Cyan)
+    Write-Linea -Caracter '─' -Color $Color
+    $pad = [Math]::Max(0, [Math]::Floor((72 - $Texto.Length) / 2))
+    Write-Host ((' ' * $pad) + $Texto) -ForegroundColor $Color
+    Write-Linea -Caracter '─' -Color $Color
+}
+
+function Write-Info {
+    param([string]$Texto)
+    Write-Host "  ℹ  " -NoNewline -ForegroundColor Cyan
+    Write-Host $Texto -ForegroundColor White
+}
+
+function Write-Ok {
+    param([string]$Texto)
+    Write-Host "  ✔  " -NoNewline -ForegroundColor Green
+    Write-Host $Texto -ForegroundColor White
+}
+
+function Write-Warn {
+    param([string]$Texto)
+    Write-Host "  ⚠  " -NoNewline -ForegroundColor Yellow
+    Write-Host $Texto -ForegroundColor White
+}
+
+function Write-ErrorMsg {
+    param([string]$Texto)
+    Write-Host "  ✖  " -NoNewline -ForegroundColor Red
+    Write-Host $Texto -ForegroundColor White
+}
+
 function Write-Etapa {
     param([Parameter(Mandatory)][string]$Mensaje)
-    Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] $Mensaje" -ForegroundColor Cyan
+    Write-Host "  ℹ  [$((Get-Date).ToString('HH:mm:ss'))] " -NoNewline -ForegroundColor Cyan
+    Write-Host $Mensaje -ForegroundColor White
 }
 
 if ($Modo -eq 'Limpieza') {
