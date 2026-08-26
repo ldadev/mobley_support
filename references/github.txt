@@ -1,0 +1,21 @@
+REPOSITORIO GITHUB PUBLICO
+https://github.com/ldadev/mobley_support.git
+
+RUTAS RAW DE ARCHIVOS
+Auditar-Trafico.ps1         --> https://raw.githubusercontent.com/ldadev/mobley_support/main/scripts/Auditar-Trafico.ps1
+Ejecutar-Soporte.cmd        --> https://raw.githubusercontent.com/ldadev/mobley_support/main/scripts/Ejecutar-Soporte.cmd
+Ejecutar-Soporte-GitHub.ps1 --> https://raw.githubusercontent.com/ldadev/mobley_support/main/scripts/Ejecutar-Soporte-GitHub.ps1
+
+COMANDO CORTO PARA POWERSHELL
+
+1. Abrir PowerShell.
+2. Copiar y ejecutar:
+
+irm "https://raw.githubusercontent.com/ldadev/mobley_support/main/scripts/Ejecutar-Soporte-GitHub.ps1" | iex
+
+El comando descarga las versiones actuales de Auditar-Trafico.ps1 y
+Ejecutar-Soporte.cmd desde GitHub, y después abre el menú de soporte.
+
+Comando local alternativo:
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Ejecutar-Soporte-GitHub.ps1"
