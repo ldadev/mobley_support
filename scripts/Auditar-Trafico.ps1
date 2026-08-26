@@ -41,6 +41,8 @@ param(
 
     [switch]$EliminarTemporales,
 
+    [switch]$LimpiarColaImpresion,
+
     [switch]$AutoEliminarAlCerrar,
 
     [switch]$NoAutoAbrirReporte
@@ -263,6 +265,47 @@ function Finalizar-InformeYLimpiar {
     }
 }
 
+function Clear-ColaImpresionSpooler {
+    Write-Etapa 'Deteniendo servicio de cola de impresion (Spooler)...'
+    try {
+        Stop-Service -Name Spooler -Force -ErrorAction Stop
+    }
+    catch {
+        Registrar-ErrorAuditoria 'Spooler Stop' $_.Exception.Message
+    }
+
+    $rutaSpoolPrinters = Join-Path $env:windir 'System32\spool\PRINTERS'
+    $eliminadosSpool = 0
+    if (Test-Path $rutaSpoolPrinters) {
+        $archivosSpool = @(Get-ChildItem -LiteralPath $rutaSpoolPrinters -File -Force -ErrorAction SilentlyContinue)
+        foreach ($f in $archivosSpool) {
+            try {
+                Remove-Item -LiteralPath $f.FullName -Force -ErrorAction Stop
+                $eliminadosSpool++
+            }
+            catch {}
+        }
+    }
+
+    Write-Etapa 'Reiniciando servicio de cola de impresion (Spooler)...'
+    try {
+        Start-Service -Name Spooler -ErrorAction Stop
+    }
+    catch {
+        Registrar-ErrorAuditoria 'Spooler Start' $_.Exception.Message
+    }
+
+    $estadoSpooler = Get-Service -Name Spooler -ErrorAction SilentlyContinue
+    $statusText = if ($null -ne $estadoSpooler) { [string]$estadoSpooler.Status } else { 'Desconocido' }
+
+    Write-Host "Cola de impresion liberada. Trabajos/archivos eliminados: $eliminadosSpool. Estado de Spooler: $statusText" -ForegroundColor Green
+    return [pscustomobject]@{
+        Fecha              = Get-Date
+        ArchivosEliminados = $eliminadosSpool
+        EstadoSpooler      = $statusText
+    }
+}
+
 if (-not (Test-Administrador)) {
     throw 'Ejecute PowerShell como administrador para recopilar toda la evidencia.'
 }
@@ -289,6 +332,7 @@ $sistemaOperativo = @()
 $pktmonActivo = $false
 $archivoEtl = Join-Path $carpeta 'captura.etl'
 $archivoPcapng = Join-Path $carpeta 'captura.pcapng'
+$resultadoLimpiezaSpooler = $null
 
 function Registrar-ErrorAuditoria {
     param(
@@ -402,6 +446,15 @@ th { background: #e2e8f0; }
 
 Write-Host ''
 Write-Host "Modo: $Modo | Duración del muestreo: $DuracionMinutos minuto(s)" -ForegroundColor Yellow
+
+if ($LimpiarColaImpresion) {
+    $resultadoLimpiezaSpooler = Clear-ColaImpresionSpooler
+    if ($null -ne $resultadoLimpiezaSpooler) {
+        @($resultadoLimpiezaSpooler) |
+            Export-Csv (Join-Path $carpeta 'limpieza-cola-impresion.csv') -NoTypeInformation -Encoding UTF8
+    }
+}
+
 Write-Etapa 'Recopilando configuración inicial del equipo...'
 try {
     & ipconfig.exe /all | Out-File (Join-Path $carpeta 'ipconfig.txt') -Encoding utf8
@@ -1384,6 +1437,15 @@ if ($servicioImpresion.Count -gt 0) {
     })
 }
 
+if ($null -ne $resultadoLimpiezaSpooler) {
+    $controlesSeguridad.Add([pscustomobject]@{
+        Area      = 'Impresión'
+        Control   = 'Liberación de cola de impresión (Spooler)'
+        Resultado = if ([string]$resultadoLimpiezaSpooler.EstadoSpooler -eq 'Running') { 'Cumple' } else { 'Revisar' }
+        Detalle   = "Trabajos/archivos eliminados: $($resultadoLimpiezaSpooler.ArchivosEliminados); Estado Spooler: $($resultadoLimpiezaSpooler.EstadoSpooler)"
+    })
+}
+
 foreach ($impRed in $impresorasRed) {
     $resImp = if ($impRed.PingExitoso -and -not $impRed.ModoSinConexion) { 'Cumple' } else { 'Revisar' }
     $controlesSeguridad.Add([pscustomobject]@{
@@ -2010,6 +2072,7 @@ $contenido = @(
     (Convertir-FragmentoHtml @($impresoras) 'Impresoras instaladas' 'No se encontraron impresoras instaladas.')
     (Convertir-FragmentoHtml ($impresorasRed.ToArray()) 'Estado y diagnóstico de impresoras de red' 'No se detectaron impresoras de red instaladas o no hay puertos de red asociados.')
     (Convertir-FragmentoHtml @($servicioImpresion) 'Estado del servicio de impresión')
+    (Convertir-FragmentoHtml @($resultadoLimpiezaSpooler) 'Resultado de la liberación de la cola de impresión' 'No se solicitó reiniciar o liberar la cola de impresión.')
     (Convertir-FragmentoHtml @($trabajosImpresion) 'Trabajos en las colas de impresión' 'No hay trabajos pendientes.')
     (Convertir-FragmentoHtml @($eventosImpresion | Select-Object -First 100) 'Eventos recientes de impresión' 'No se encontraron eventos de impresión en el periodo consultado.')
     (Convertir-FragmentoHtml @($licenciasMicrosoft) 'Licencias Microsoft publicadas por Windows' 'No se encontraron productos Microsoft con clave parcial registrada.')

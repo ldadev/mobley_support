@@ -32,6 +32,7 @@ echo   [1] Diagnostico Rapido      (5 min - Estado general, red basica y hardwar
 echo   [2] Diagnostico Completo    (Extenso - SMART, parches, DISM/SFC, eventos)
 echo   [3] Auditoria de Red        (30 min - Muestreo de conexiones y trafico)
 echo   [4] Limpieza de Temporales  (Libera espacio en discos de cache antiguos)
+echo   [5] Liberar Cola Impresion  (Cancela trabajos atascados y reinicia Spooler)
 echo   [Q] Salir del Menu
 echo.
 echo  --------------------------------------------------------------------
@@ -42,7 +43,7 @@ echo  ====================================================================
 echo.
 
 set "OPCION="
-set /p "OPCION= Seleccione una opcion [1, 2, 3, 4 o Q]: "
+set /p "OPCION= Seleccione una opcion [1, 2, 3, 4, 5 o Q]: "
 
 if /i "%OPCION%"=="Q" (
     echo.
@@ -59,6 +60,8 @@ if "%OPCION%"=="1" (
     set "PARAMETROS=-Modo Red -AutoEliminarAlCerrar"
 ) else if "%OPCION%"=="4" (
     set "PARAMETROS=-Modo Limpieza -AutoEliminarAlCerrar"
+) else if "%OPCION%"=="5" (
+    set "PARAMETROS=-Modo Rapido -LimpiarColaImpresion -AutoEliminarAlCerrar"
 ) else (
     echo.
     echo  [!] Opcion no valida. Intente de nuevo.
