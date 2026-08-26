@@ -245,10 +245,10 @@ function Finalizar-InformeYLimpiar {
         Write-Warn 'NOTA: Los archivos de evidencias e informe son TEMPORALES.'
         Write-Warn 'Permaneceran disponibles MIENTRAS esta ventana continue abierta.'
         Write-Host ''
-        Write-Linea -Caracter '─' -Color Cyan
+        Write-Linea -Caracter '-' -Color Cyan
         Write-Host '  >>> PRESIONE ENTER (O CUALQUIER TECLA) PARA SALIR Y ELIMINAR' -ForegroundColor Cyan
         Write-Host '      TODOS LOS ARCHIVOS TEMPORALES DE DIAGNOSTICO DE ESTE EQUIPO...' -ForegroundColor Cyan
-        Write-Linea -Caracter '─' -Color Cyan
+        Write-Linea -Caracter '-' -Color Cyan
         Write-Host ''
 
         try {
@@ -346,45 +346,45 @@ function Registrar-ErrorAuditoria {
 }
 
 function Write-Linea {
-    param([string]$Caracter = '─', [string]$Color = 'Cyan')
+    param([string]$Caracter = '-', [string]$Color = 'Cyan')
     Write-Host ($Caracter * 72) -ForegroundColor $Color
 }
 
 function Write-Titulo {
     param([string]$Texto, [string]$Color = 'Cyan')
-    Write-Linea -Caracter '─' -Color $Color
+    Write-Linea -Caracter '-' -Color $Color
     $pad = [Math]::Max(0, [Math]::Floor((72 - $Texto.Length) / 2))
     Write-Host ((' ' * $pad) + $Texto) -ForegroundColor $Color
-    Write-Linea -Caracter '─' -Color $Color
+    Write-Linea -Caracter '-' -Color $Color
 }
 
 function Write-Info {
     param([string]$Texto)
-    Write-Host "  ℹ  " -NoNewline -ForegroundColor Cyan
+    Write-Host '  i  ' -NoNewline -ForegroundColor Cyan
     Write-Host $Texto -ForegroundColor White
 }
 
 function Write-Ok {
     param([string]$Texto)
-    Write-Host "  ✔  " -NoNewline -ForegroundColor Green
+    Write-Host '  OK ' -NoNewline -ForegroundColor Green
     Write-Host $Texto -ForegroundColor White
 }
 
 function Write-Warn {
     param([string]$Texto)
-    Write-Host "  ⚠  " -NoNewline -ForegroundColor Yellow
+    Write-Host '  !  ' -NoNewline -ForegroundColor Yellow
     Write-Host $Texto -ForegroundColor White
 }
 
 function Write-ErrorMsg {
     param([string]$Texto)
-    Write-Host "  ✖  " -NoNewline -ForegroundColor Red
+    Write-Host '  X  ' -NoNewline -ForegroundColor Red
     Write-Host $Texto -ForegroundColor White
 }
 
 function Write-Etapa {
     param([Parameter(Mandatory)][string]$Mensaje)
-    Write-Host "  ℹ  [$((Get-Date).ToString('HH:mm:ss'))] " -NoNewline -ForegroundColor Cyan
+    Write-Host "  i  [$((Get-Date).ToString('HH:mm:ss'))] " -NoNewline -ForegroundColor Cyan
     Write-Host $Mensaje -ForegroundColor White
 }
 

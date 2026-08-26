@@ -35,13 +35,13 @@ foreach ($archivo in $archivos) {
     Invoke-WebRequest -Uri $url -OutFile $ruta -UseBasicParsing
 
     if (-not (Test-Path $ruta) -or (Get-Item $ruta).Length -eq 0) {
-        throw "GitHub no entregó correctamente $($archivo.Nombre)."
+        throw "GitHub no entrego correctamente $($archivo.Nombre)."
     }
 
     $inicioArchivo = Get-Content $ruta -TotalCount 5 -ErrorAction Stop
     if (($inicioArchivo -join ' ') -match '<!DOCTYPE|<html|404: Not Found') {
         Remove-Item -LiteralPath $ruta -Force
-        throw "GitHub devolvió un error o página web en lugar de $($archivo.Nombre). Verifique la URL raw."
+        throw "GitHub devolvio un error o pagina web en lugar de $($archivo.Nombre). Verifique la URL raw."
     }
 }
 
@@ -55,10 +55,10 @@ $tokens = $null
 )
 if ($erroresSintaxis.Count -gt 0) {
     $primerError = $erroresSintaxis[0]
-    throw "El script descargado contiene errores de sintaxis en línea $($primerError.Extent.StartLineNumber), columna $($primerError.Extent.StartColumnNumber): $($primerError.Message)"
+    throw "El script descargado contiene errores de sintaxis en linea $($primerError.Extent.StartLineNumber), columna $($primerError.Extent.StartColumnNumber): $($primerError.Message)"
 }
 
 $lanzador = Join-Path $destino 'Ejecutar-Soporte.cmd'
 Write-Host "Descarga finalizada en $destino" -ForegroundColor Green
-Write-Host 'Abriendo el menú de soporte...' -ForegroundColor Cyan
+Write-Host 'Abriendo el menu de soporte...' -ForegroundColor Cyan
 Start-Process -FilePath $lanzador
