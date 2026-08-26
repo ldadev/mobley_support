@@ -11,6 +11,14 @@ if not exist "%~dp0Auditar-Trafico.ps1" (
     exit /b 1
 )
 
+if not exist "%~dp0Menu-Soporte.ps1" (
+    echo.
+    echo  [x] ERROR CRITICO: No se encontro Menu-Soporte.ps1
+    echo.
+    pause
+    exit /b 1
+)
+
 fltmc >nul 2>&1
 if errorlevel 1 (
     echo [i] Solicitando elevacion de privilegios de Administrador...
