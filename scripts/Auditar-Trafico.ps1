@@ -95,12 +95,12 @@ function Test-IPPublica {
 
 function Convertir-FragmentoHtml {
     param(
-        [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Datos,
+        [AllowNull()][AllowEmptyCollection()][object[]]$Datos,
         [Parameter(Mandatory)][string]$Titulo,
         [string]$Vacio = 'Sin datos.'
     )
 
-    if ($Datos.Count -eq 0) {
+    if ($null -eq $Datos -or $Datos.Count -eq 0) {
         return "<h2>$Titulo</h2><p>$Vacio</p>"
     }
     return ($Datos | ConvertTo-Html -Fragment -PreContent "<h2>$Titulo</h2>")
@@ -2109,7 +2109,7 @@ $contenido = @(
     (Convertir-FragmentoHtml @($impresoras) 'Impresoras instaladas' 'No se encontraron impresoras instaladas.')
     (Convertir-FragmentoHtml ($impresorasRed.ToArray()) 'Estado y diagnóstico de impresoras de red' 'No se detectaron impresoras de red instaladas o no hay puertos de red asociados.')
     (Convertir-FragmentoHtml @($servicioImpresion) 'Estado del servicio de impresión')
-    (Convertir-FragmentoHtml @($resultadoLimpiezaSpooler) 'Resultado de la liberación de la cola de impresión' 'No se solicitó reiniciar o liberar la cola de impresión.')
+    (Convertir-FragmentoHtml @($resultadoLimpiezaSpooler | Where-Object { $_ }) 'Resultado de la liberación de la cola de impresión' 'No se solicitó reiniciar o liberar la cola de impresión.')
     (Convertir-FragmentoHtml @($trabajosImpresion) 'Trabajos en las colas de impresión' 'No hay trabajos pendientes.')
     (Convertir-FragmentoHtml @($eventosImpresion | Select-Object -First 100) 'Eventos recientes de impresión' 'No se encontraron eventos de impresión en el periodo consultado.')
     (Convertir-FragmentoHtml @($licenciasMicrosoft) 'Licencias Microsoft publicadas por Windows' 'No se encontraron productos Microsoft con clave parcial registrada.')
