@@ -1353,7 +1353,7 @@ try {
                 HostIP          = if ($hostRed) { $hostRed } else { 'Desconocido' }
                 PingExitoso     = $pingOk
                 LatenciaMs      = if ($null -ne $pingMs) { $pingMs } else { '-' }
-                PuertoImpresion = "$puertoAProbar: " + (if ($puertoImpAbierto) { 'Abierto' } else { 'Cerrado' })
+                PuertoImpresion = "${puertoAProbar}: " + (if ($puertoImpAbierto) { 'Abierto' } else { 'Cerrado' })
                 ModoSinConexion = $imp.WorkOffline
                 DiagnosticoRed  = $estadoRedDetalle
             })
