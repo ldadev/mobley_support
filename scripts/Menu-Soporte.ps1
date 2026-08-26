@@ -49,11 +49,11 @@ function Write-Pausar {
 }
 
 $opciones = [ordered]@{
-    '1' = @{ Icon = '[R]'; Label = 'Diagnostico Rapido'; Desc = '(5 min - Estado general, red basica y hardware)'; Params = '-Modo Rapido -AutoEliminarAlCerrar' }
-    '2' = @{ Icon = '[C]'; Label = 'Diagnostico Completo'; Desc = '(Extenso - SMART, parches, DISM/SFC, eventos)'; Params = '-Modo Completo -IncluirVerificacionSistema -AutoEliminarAlCerrar' }
-    '3' = @{ Icon = '[N]'; Label = 'Auditoria de Red'; Desc = '(30 min - Muestreo de conexiones y trafico TCP/ETL)'; Params = '-Modo Red -AutoEliminarAlCerrar' }
-    '4' = @{ Icon = '[L]'; Label = 'Limpieza de Temporales'; Desc = '(Libera espacio en discos de cache antiguos)'; Params = '-Modo Limpieza -AutoEliminarAlCerrar' }
-    '5' = @{ Icon = '[P]'; Label = 'Liberar Cola Impresion'; Desc = '(Cancela trabajos atascados y reinicia Spooler)'; Params = '-Modo Rapido -LimpiarColaImpresion -AutoEliminarAlCerrar' }
+    '1' = @{ Icon = '[R]'; Label = 'Diagnostico Rapido'; Desc = '(5 min - Estado general, red basica y hardware)'; Params = @{ Modo = 'Rapido'; AutoEliminarAlCerrar = $true } }
+    '2' = @{ Icon = '[C]'; Label = 'Diagnostico Completo'; Desc = '(Extenso - SMART, parches, DISM/SFC, eventos)'; Params = @{ Modo = 'Completo'; IncluirVerificacionSistema = $true; AutoEliminarAlCerrar = $true } }
+    '3' = @{ Icon = '[N]'; Label = 'Auditoria de Red'; Desc = '(30 min - Muestreo de conexiones y trafico TCP/ETL)'; Params = @{ Modo = 'Red'; AutoEliminarAlCerrar = $true } }
+    '4' = @{ Icon = '[L]'; Label = 'Limpieza de Temporales'; Desc = '(Libera espacio en discos de cache antiguos)'; Params = @{ Modo = 'Limpieza'; AutoEliminarAlCerrar = $true } }
+    '5' = @{ Icon = '[P]'; Label = 'Liberar Cola Impresion'; Desc = '(Cancela trabajos atascados y reinicia Spooler)'; Params = @{ Modo = 'Rapido'; LimpiarColaImpresion = $true; AutoEliminarAlCerrar = $true } }
 }
 
 while ($true) {
@@ -114,8 +114,8 @@ while ($true) {
         Write-Host ''
 
         try {
-            $pList = $sel.Params -split ' '
-            & $script @pList
+            $paramsSplat = $sel.Params
+            & $script @paramsSplat
             Write-Host ''
             Write-Ok 'Proceso completado exitosamente.'
         }
