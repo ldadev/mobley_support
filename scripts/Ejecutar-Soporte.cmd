@@ -23,11 +23,11 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "& {
     $script = Join-Path $PSScriptRoot 'Auditar-Trafico.ps1'
     if (-not (Test-Path -LiteralPath $script)) { $script = '.\Auditar-Trafico.ps1' }
 
-    function Write-Linea([string]$c='─', [System.ConsoleColor]$col=[System.ConsoleColor]::Cyan) {
+    function Write-Linea([string]$c='─', $col=[System.ConsoleColor]::Cyan) {
         Write-Host ($c * 68) -ForegroundColor $col
     }
 
-    function Write-Titulo([string]$txt, [System.ConsoleColor]$col=[System.ConsoleColor]::Cyan) {
+    function Write-Titulo([string]$txt, $col=[System.ConsoleColor]::Cyan) {
         Write-Linea -c '─' -col $col
         $pad = [Math]::Max(0, [Math]::Floor((68 - $txt.Length) / 2))
         Write-Host ((' ' * $pad) + $txt) -ForegroundColor $col

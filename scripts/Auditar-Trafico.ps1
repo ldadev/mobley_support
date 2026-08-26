@@ -346,12 +346,12 @@ function Registrar-ErrorAuditoria {
 }
 
 function Write-Linea {
-    param([string]$Caracter = '─', [System.ConsoleColor]$Color = [System.ConsoleColor]::Cyan)
+    param([string]$Caracter = '─', $Color = [System.ConsoleColor]::Cyan)
     Write-Host ($Caracter * 72) -ForegroundColor $Color
 }
 
 function Write-Titulo {
-    param([string]$Texto, [System.ConsoleColor]$Color = [System.ConsoleColor]::Cyan)
+    param([string]$Texto, $Color = [System.ConsoleColor]::Cyan)
     Write-Linea -Caracter '─' -Color $Color
     $pad = [Math]::Max(0, [Math]::Floor((72 - $Texto.Length) / 2))
     Write-Host ((' ' * $pad) + $Texto) -ForegroundColor $Color
@@ -640,8 +640,8 @@ try {
         $statusStr = "`r [$barraStr] $porcentaje% | Muestra $numeroMuestra | Restante: $($tiempoRestante.ToString('mm\:ss')) | ['Q' para parar]"
         Write-Host $statusStr -NoNewline -ForegroundColor Cyan
 
-        if ([Console]::KeyAvailable) {
-            $teclaInfo = [Console]::ReadKey($true)
+        if ([System.Console]::KeyAvailable) {
+            $teclaInfo = [System.Console]::ReadKey($true)
             if ($teclaInfo.Key -eq 'Q' -or $teclaInfo.Key -eq 'Escape') {
                 Write-Host "`r`n`n[!] Muestreo detenido por el usuario. Generando informe con las muestras obtenidas..." -ForegroundColor Yellow
                 break
