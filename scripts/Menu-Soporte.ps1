@@ -54,6 +54,7 @@ $opciones = [ordered]@{
     '3' = @{ Icon = '[N]'; Label = 'Auditoria de Red'; Desc = '(30 min - Muestreo de conexiones y trafico TCP/ETL)'; Params = @{ Modo = 'Red'; AutoEliminarAlCerrar = $true } }
     '4' = @{ Icon = '[L]'; Label = 'Limpieza de Temporales'; Desc = '(Libera espacio en discos de cache antiguos)'; Params = @{ Modo = 'Limpieza'; AutoEliminarAlCerrar = $true } }
     '5' = @{ Icon = '[P]'; Label = 'Liberar Cola Impresion'; Desc = '(Solo: cancela trabajos atascados y reinicia Spooler)'; Params = @{ LimpiarColaImpresion = $true; AutoEliminarAlCerrar = $true } }
+    '6' = @{ Icon = '[O]'; Label = 'Optimizacion Rapida'; Desc = '(Papelera, cache DNS/iconos y limpieza de WinSxS)'; Params = @{ OptimizarSistema = $true; AutoEliminarAlCerrar = $true } }
 }
 
 while ($true) {
@@ -128,7 +129,7 @@ while ($true) {
     }
     else {
         Write-Host ''
-        Write-Warn ('"{0}" no es una opcion valida. Ingrese un numero del 1 al 5, o 0 para salir.' -f $opc)
+        Write-Warn ('"{0}" no es una opcion valida. Ingrese un numero del 1 al 6, o 0 para salir.' -f $opc)
         Write-Pausar
     }
 }

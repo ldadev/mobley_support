@@ -43,6 +43,8 @@ param(
 
     [switch]$LimpiarColaImpresion,
 
+    [switch]$OptimizarSistema,
+
     [switch]$AutoEliminarAlCerrar,
 
     [switch]$NoAutoAbrirReporte
@@ -305,6 +307,69 @@ function Clear-ColaImpresionSpooler {
     }
 }
 
+function Optimizar-Sistema {
+    $resultados = New-Object 'System.Collections.Generic.List[object]'
+
+    Write-Etapa 'Vaciando la Papelera de Reciclaje...'
+    try {
+        Clear-RecycleBin -Force -ErrorAction Stop
+        $resultados.Add([pscustomobject]@{ Accion = 'Papelera de Reciclaje'; Resultado = 'Vaciada correctamente'; Detalle = '-' })
+    }
+    catch {
+        $resultados.Add([pscustomobject]@{ Accion = 'Papelera de Reciclaje'; Resultado = 'Sin cambios o ya vacía'; Detalle = $_.Exception.Message })
+    }
+
+    Write-Etapa 'Limpiando la caché de resolución DNS...'
+    try {
+        Clear-DnsClientCache -ErrorAction Stop
+        $resultados.Add([pscustomobject]@{ Accion = 'Caché DNS'; Resultado = 'Vaciada correctamente'; Detalle = '-' })
+    }
+    catch {
+        $resultados.Add([pscustomobject]@{ Accion = 'Caché DNS'; Resultado = 'Error'; Detalle = $_.Exception.Message })
+    }
+
+    Write-Etapa 'Limpiando la caché de miniaturas e iconos...'
+    $rutaExplorerCache = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows\Explorer'
+    $cacheEliminados = 0
+    $cacheFallidos = 0
+    if (Test-Path -LiteralPath $rutaExplorerCache) {
+        $archivosCache = @(Get-ChildItem -LiteralPath $rutaExplorerCache -File -Force -ErrorAction SilentlyContinue |
+            Where-Object Name -Match '^(thumbcache_|iconcache_).*\.db$')
+        foreach ($archivoCache in $archivosCache) {
+            try {
+                Remove-Item -LiteralPath $archivoCache.FullName -Force -ErrorAction Stop
+                $cacheEliminados++
+            }
+            catch {
+                $cacheFallidos++
+            }
+        }
+    }
+    $detalleCache = "Eliminados=$cacheEliminados; bloqueados/omitidos=$cacheFallidos (se regeneran automáticamente)"
+    $resultados.Add([pscustomobject]@{
+        Accion    = 'Caché de miniaturas e iconos'
+        Resultado = if ($cacheEliminados -gt 0) { 'Vaciada correctamente' } else { 'Sin archivos que eliminar' }
+        Detalle   = $detalleCache
+    })
+
+    Write-Etapa 'Ejecutando limpieza de componentes de Windows obsoletos (DISM)...'
+    try {
+        $salidaDism = & dism.exe /Online /Cleanup-Image /StartComponentCleanup 2>&1
+        $codigoDism = $LASTEXITCODE
+        $resultados.Add([pscustomobject]@{
+            Accion    = 'Componentes de Windows obsoletos (WinSxS)'
+            Resultado = if ($codigoDism -eq 0) { 'Completado correctamente' } else { 'Revisar' }
+            Detalle   = "Código de salida DISM=$codigoDism"
+        })
+    }
+    catch {
+        $resultados.Add([pscustomobject]@{ Accion = 'Componentes de Windows obsoletos (WinSxS)'; Resultado = 'Error'; Detalle = $_.Exception.Message })
+    }
+
+    Write-Host 'Optimización del sistema finalizada.' -ForegroundColor Green
+    return $resultados.ToArray()
+}
+
 if (-not (Test-Administrador)) {
     throw 'Ejecute PowerShell como administrador para recopilar toda la evidencia.'
 }
@@ -516,6 +581,44 @@ th { background: #e2e8f0; }
 
     Write-Host "Liberación de cola de impresión finalizada. Informe: $archivoInformeSpooler" -ForegroundColor Green
     Finalizar-InformeYLimpiar -RutaInforme $archivoInformeSpooler -CarpetaAuditoria $carpeta -AutoEliminar $AutoEliminarAlCerrar -AbrirReporte (-not $NoAutoAbrirReporte)
+    return
+}
+
+if ($OptimizarSistema) {
+    Write-Etapa 'Iniciando optimización rápida del sistema...'
+    $resultadoOptimizacion = Optimizar-Sistema
+    $resultadoOptimizacion |
+        Export-Csv (Join-Path $carpeta 'optimizacion-sistema.csv') -NoTypeInformation -Encoding UTF8
+
+    $estiloOptimizacion = @'
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; margin: 32px; color: #1f2937; }
+h1, h2 { color: #17365d; }
+table { border-collapse: collapse; width: 100%; margin-bottom: 24px; }
+th, td { border: 1px solid #cbd5e1; padding: 6px; text-align: left; }
+th { background: #e2e8f0; }
+.nota { background: #fff7d6; border-left: 4px solid #d69e2e; padding: 12px; }
+</style>
+'@
+    $contenidoOptimizacion = @(
+        '<h1>Informe de soporte - Optimización rápida del equipo</h1>'
+        "<p class='nota'>Se vació la Papelera de Reciclaje, la caché DNS, la caché de miniaturas/iconos de Explorer, y se ejecutó la limpieza oficial de componentes de Windows obsoletos (DISM). No se eliminaron documentos, descargas ni configuraciones del usuario.</p>"
+        (Convertir-FragmentoHtml @($resultadoOptimizacion) 'Acciones realizadas')
+    ) -join "`r`n"
+
+    $archivoInformeOptimizacion = Join-Path $carpeta 'informe-de-soporte.html'
+    Write-Etapa 'Generando el informe...'
+    ConvertTo-Html -Title 'Informe de soporte - Optimización' -Head $estiloOptimizacion -Body $contenidoOptimizacion |
+        Out-File $archivoInformeOptimizacion -Encoding utf8
+
+    $hashesOptimizacion = @(Get-ChildItem $carpeta -File |
+        Where-Object Name -ne 'hashes-sha256.csv' |
+        Get-FileHash -Algorithm SHA256 |
+        Select-Object Path, Algorithm, Hash)
+    $hashesOptimizacion | Export-Csv (Join-Path $carpeta 'hashes-sha256.csv') -NoTypeInformation -Encoding UTF8
+
+    Write-Host "Optimización finalizada. Informe: $archivoInformeOptimizacion" -ForegroundColor Green
+    Finalizar-InformeYLimpiar -RutaInforme $archivoInformeOptimizacion -CarpetaAuditoria $carpeta -AutoEliminar $AutoEliminarAlCerrar -AbrirReporte (-not $NoAutoAbrirReporte)
     return
 }
 

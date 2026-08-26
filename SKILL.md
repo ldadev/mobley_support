@@ -57,8 +57,14 @@ print-queue option, preserves errors, and keeps the console open.
 
 Extra switches available on `Auditar-Trafico.ps1`:
 
-- `-LimpiarColaImpresion`: stops the Spooler service, deletes stuck spool
-  files, and restarts the service before the rest of the diagnostic runs.
+- `-LimpiarColaImpresion`: standalone action. Stops the Spooler service,
+  deletes stuck spool files, restarts the service, writes a short report,
+  and returns immediately without running the rest of the diagnostic.
+- `-OptimizarSistema`: standalone action. Empties the Recycle Bin, clears
+  the DNS client cache, clears Explorer thumbnail/icon cache files, runs
+  `DISM /Online /Cleanup-Image /StartComponentCleanup`, writes a short
+  report, and returns immediately without running the rest of the
+  diagnostic. Low-risk, performance-oriented maintenance only.
 - `-AutoEliminarAlCerrar`: writes evidence to `%TEMP%` instead of
   `C:\AuditoriaRed`, opens the HTML report automatically, and deletes the
   temporary evidence folder only after the user presses a key to exit.
@@ -85,6 +91,9 @@ Extra switches available on `Auditar-Trafico.ps1`:
    reachability; report inconclusive results as `Revisar`.
 10. Offer a dedicated print-queue recovery action that stops the Spooler
     service, clears stuck `.SPL`/`.SHD` files, and restarts the service.
+11. Offer a dedicated low-risk optimization action (Recycle Bin, DNS cache,
+    Explorer thumbnail/icon cache, DISM component cleanup) that never
+    touches user documents, downloads, or installed applications.
 
 ## Cleanup safety
 
