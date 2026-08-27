@@ -354,7 +354,11 @@ function Optimizar-Sistema {
 
     Write-Etapa 'Ejecutando limpieza de componentes de Windows obsoletos (DISM)...'
     try {
-        $salidaDism = & dism.exe /Online /Cleanup-Image /StartComponentCleanup 2>&1
+        $salidaDism = & dism.exe /Online /Cleanup-Image /StartComponentCleanup 2>&1 |
+            ForEach-Object {
+                Write-Host ("  DISM: {0}" -f $_) -ForegroundColor Gray
+                $_
+            }
         $codigoDism = $LASTEXITCODE
         $resultados.Add([pscustomobject]@{
             Accion    = 'Componentes de Windows obsoletos (WinSxS)'
