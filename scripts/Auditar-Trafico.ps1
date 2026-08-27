@@ -568,6 +568,8 @@ New-Item -ItemType Directory -Path $carpeta -Force | Out-Null
 
 $errores = New-Object 'System.Collections.Generic.List[object]'
 $conexiones = New-Object 'System.Collections.Generic.List[object]'
+$conexionesUdp = New-Object 'System.Collections.Generic.List[object]'
+$detallesProcesos = New-Object 'System.Collections.Generic.List[object]'
 $estadisticasRed = New-Object 'System.Collections.Generic.List[object]'
 $rendimiento = New-Object 'System.Collections.Generic.List[object]'
 $sistemaOperativo = @()
@@ -575,6 +577,8 @@ $pktmonActivo = $false
 $archivoEtl = Join-Path $carpeta 'captura.etl'
 $archivoPcapng = Join-Path $carpeta 'captura.pcapng'
 $resultadoLimpiezaSpooler = $null
+$serviciosSistema = @()
+$reglasFirewall = @()
 $estadosLicencia = @{
     0 = 'Sin licencia'
     1 = 'Con licencia'
@@ -974,6 +978,74 @@ try {
         }
 
         try {
+            Get-NetUDPEndpoint | ForEach-Object {
+                $pidConexion = [int]$_.OwningProcess
+                $nombreProceso = if ($procesos.ContainsKey($pidConexion)) {
+                    $procesos[$pidConexion]
+                }
+                else {
+                    '[proceso finalizado o protegido]'
+                }
+                $conexionesUdp.Add([pscustomobject]@{
+                    Fecha       = $fechaMuestra
+                    Muestra     = $numeroMuestra
+                    Proceso     = $nombreProceso
+                    PID         = $pidConexion
+                    IPLocal     = $_.LocalAddress
+                    PuertoLocal = $_.LocalPort
+                    IPRemota    = '-'
+                    PuertoRemoto = '-'
+                })
+            }
+        }
+        catch {
+            Registrar-ErrorAuditoria 'Get-NetUDPEndpoint' $_.Exception.Message
+        }
+
+        try {
+            $procesosObservados = @($conexiones | Where-Object Muestra -eq $numeroMuestra |
+                Select-Object -ExpandProperty PID -Unique)
+            $procesosObservados += @($conexionesUdp | Where-Object Muestra -eq $numeroMuestra |
+                Select-Object -ExpandProperty PID -Unique)
+            foreach ($pidProceso in @($procesosObservados | Sort-Object -Unique)) {
+                $procesoActual = Get-Process -Id $pidProceso -ErrorAction SilentlyContinue
+                if ($null -eq $procesoActual) { continue }
+                $rutaProceso = $null
+                try { $rutaProceso = $procesoActual.MainModule.FileName } catch {}
+                $firmaProceso = $null
+                if ($rutaProceso -and (Test-Path -LiteralPath $rutaProceso)) {
+                    try { $firmaProceso = (Get-AuthenticodeSignature -FilePath $rutaProceso).Status } catch {}
+                }
+                $procesoWmi = Get-CimInstance Win32_Process -Filter "ProcessId = $pidProceso" -ErrorAction SilentlyContinue
+                $usuarioProceso = 'No disponible'
+                if ($null -ne $procesoWmi) {
+                    try {
+                        $propietario = Invoke-CimMethod -InputObject $procesoWmi -MethodName GetOwner -ErrorAction Stop
+                        if ($propietario.ReturnValue -eq 0) {
+                            $usuarioProceso = "$($propietario.Domain)\$($propietario.User)"
+                        }
+                    }
+                    catch {}
+                }
+                $detallesProcesos.Add([pscustomobject]@{
+                    Fecha             = $fechaMuestra
+                    Muestra           = $numeroMuestra
+                    Proceso           = $procesoActual.ProcessName
+                    PID               = $procesoActual.Id
+                    Usuario           = $usuarioProceso
+                    Ruta              = if ($rutaProceso) { $rutaProceso } else { 'No disponible' }
+                    FirmaDigital      = if ($firmaProceso) { [string]$firmaProceso } else { 'No disponible' }
+                    LineaComando      = if ($null -ne $procesoWmi -and $procesoWmi.CommandLine) { $procesoWmi.CommandLine } else { 'No disponible' }
+                    MemoriaMB         = [Math]::Round($procesoActual.WorkingSet64 / 1MB, 2)
+                    CpuTotalSegundos  = if ($null -eq $procesoActual.CPU) { 0 } else { [Math]::Round($procesoActual.CPU, 2) }
+                })
+            }
+        }
+        catch {
+            Registrar-ErrorAuditoria 'Detalles de procesos de red' $_.Exception.Message
+        }
+
+        try {
             Get-NetAdapterStatistics | ForEach-Object {
                 $estadisticasRed.Add([pscustomobject]@{
                     Fecha              = $fechaMuestra
@@ -1077,6 +1149,10 @@ $fin = Get-Date
 $archivoConexiones = Join-Path $carpeta 'conexiones.csv'
 $archivoEstadisticas = Join-Path $carpeta 'estadisticas-red.csv'
 $conexiones | Export-Csv $archivoConexiones -NoTypeInformation -Encoding UTF8
+$conexionesUdp |
+    Export-Csv (Join-Path $carpeta 'conexiones-udp.csv') -NoTypeInformation -Encoding UTF8
+$detallesProcesos |
+    Export-Csv (Join-Path $carpeta 'detalles-procesos-red.csv') -NoTypeInformation -Encoding UTF8
 $estadisticasRed | Export-Csv $archivoEstadisticas -NoTypeInformation -Encoding UTF8
 $rendimiento |
     Export-Csv (Join-Path $carpeta 'rendimiento.csv') -NoTypeInformation -Encoding UTF8
@@ -1086,6 +1162,28 @@ try {
     $dns = @(Get-DnsClientCache |
         Select-Object Entry, RecordName, RecordType, Status, Section, TimeToLive, Data)
     $dns | Export-Csv (Join-Path $carpeta 'cache-dns.csv') -NoTypeInformation -Encoding UTF8
+}
+
+$configuracionesIp = @()
+$servidoresDns = @()
+$tablaArp = @()
+try {
+    $configuracionesIp = @(Get-NetIPConfiguration |
+        Select-Object InterfaceAlias, InterfaceIndex, IPv4Address, IPv6Address,
+            IPv4DefaultGateway, DNSServer)
+    $configuracionesIp |
+        Export-Csv (Join-Path $carpeta 'configuracion-ip-estructurada.csv') -NoTypeInformation -Encoding UTF8
+    $servidoresDns = @(Get-DnsClientServerAddress |
+        Select-Object InterfaceAlias, AddressFamily, ServerAddresses)
+    $servidoresDns |
+        Export-Csv (Join-Path $carpeta 'servidores-dns-configurados.csv') -NoTypeInformation -Encoding UTF8
+    $tablaArp = @(Get-NetNeighbor |
+        Select-Object ifIndex, InterfaceAlias, IPAddress, LinkLayerAddress, State, PolicyStore)
+    $tablaArp |
+        Export-Csv (Join-Path $carpeta 'tabla-arp-estructurada.csv') -NoTypeInformation -Encoding UTF8
+}
+catch {
+    Registrar-ErrorAuditoria 'Configuración IP, DNS o ARP' $_.Exception.Message
 }
 catch {
     Registrar-ErrorAuditoria 'Get-DnsClientCache' $_.Exception.Message
@@ -1270,6 +1368,30 @@ try {
 }
 catch {
     Registrar-ErrorAuditoria 'Perfiles de Windows Firewall' $_.Exception.Message
+}
+
+try {
+    $reglasFirewall = @(Get-NetFirewallRule -Enabled True |
+        ForEach-Object {
+            $regla = $_
+            $puertos = @(Get-NetFirewallPortFilter -AssociatedNetFirewallRule $regla -ErrorAction SilentlyContinue)
+            $programas = @(Get-NetFirewallApplicationFilter -AssociatedNetFirewallRule $regla -ErrorAction SilentlyContinue)
+            [pscustomobject]@{
+                Nombre       = $regla.DisplayName
+                Direccion    = [string]$regla.Direction
+                Accion       = [string]$regla.Action
+                Perfil       = [string]$regla.Profile
+                Programa     = ($programas.Program -join '; ')
+                Protocolo    = ($puertos.Protocol -join '; ')
+                PuertoLocal  = ($puertos.LocalPort -join '; ')
+                PuertoRemoto = ($puertos.RemotePort -join '; ')
+            }
+        })
+    $reglasFirewall |
+        Export-Csv (Join-Path $carpeta 'reglas-firewall-habilitadas.csv') -NoTypeInformation -Encoding UTF8
+}
+catch {
+    Registrar-ErrorAuditoria 'Reglas de Windows Firewall' $_.Exception.Message
 }
 
 if ($productosAntivirus.Count -eq 0) {
@@ -1499,6 +1621,33 @@ catch {
 }
 
 $inicioEventos = (Get-Date).AddDays(-$DiasEventos)
+$eventosSeguridad = @()
+try {
+    $logsSeguridad = @(
+        'Security'
+        'Windows PowerShell'
+        'Microsoft-Windows-PowerShell/Operational'
+        'Microsoft-Windows-Windows Defender/Operational'
+        'Microsoft-Windows-Windows Firewall With Advanced Security/Firewall'
+    )
+    foreach ($nombreLog in $logsSeguridad) {
+        try {
+            $eventosSeguridad += @(Get-WinEvent -FilterHashtable @{
+                LogName   = $nombreLog
+                StartTime = $inicioEventos
+                Level     = @(1, 2, 3)
+            } -MaxEvents 200 -ErrorAction SilentlyContinue |
+                Select-Object TimeCreated, LogName, ProviderName, Id,
+                    LevelDisplayName, Message)
+        }
+        catch {}
+    }
+    $eventosSeguridad |
+        Export-Csv (Join-Path $carpeta 'eventos-seguridad-powerShell-firewall.csv') -NoTypeInformation -Encoding UTF8
+}
+catch {
+    Registrar-ErrorAuditoria 'Eventos de seguridad, PowerShell y firewall' $_.Exception.Message
+}
 $eventosSistema = @()
 try {
     $eventosSistema = @(@('System', 'Application') | ForEach-Object {
@@ -1536,6 +1685,17 @@ try {
 }
 catch {
     Registrar-ErrorAuditoria 'Servicios automáticos' $_.Exception.Message
+}
+
+try {
+    $serviciosSistema = @(Get-CimInstance Win32_Service |
+        Select-Object Name, DisplayName, State, StartMode, StartName, ExitCode,
+            PathName, Description)
+    $serviciosSistema |
+        Export-Csv (Join-Path $carpeta 'servicios-sistema.csv') -NoTypeInformation -Encoding UTF8
+}
+catch {
+    Registrar-ErrorAuditoria 'Inventario de servicios' $_.Exception.Message
 }
 
 $inicioWindows = @()
@@ -2450,6 +2610,7 @@ else {
 }
 
 $cantidadEventosVisor = @($eventosSistema).Count
+$cantidadEventosSeguridad = @($eventosSeguridad).Count
 $cantidadFallosAplicacion = @($eventosAplicaciones).Count
 $cantidadEventosKaspersky = @($eventosKaspersky).Count
 $cantidadEventosImpresion = @($eventosImpresion).Count
@@ -2458,6 +2619,10 @@ $cantidadProcesosConsumo = @($procesosConsumo).Count
 $cantidadServiciosDetenidos = @($serviciosAutomaticosDetenidos).Count
 $cantidadServiciosKaspersky = @($componentesKaspersky).Count
 $cantidadConexiones = $conexiones.Count
+$cantidadConexionesUdp = $conexionesUdp.Count
+$cantidadDetallesProcesos = @($detallesProcesos | Select-Object PID, Proceso -Unique).Count
+$cantidadServiciosSistema = @($serviciosSistema).Count
+$cantidadReglasFirewall = @($reglasFirewall).Count
 $cantidadDestinosPublicos = @($conexiones | Where-Object DestinoPublico | Select-Object -ExpandProperty IPRemota -Unique).Count
 $cantidadPuertosEscucha = @($puertosEscucha).Count
 $cantidadErroresRed = @($errores | Where-Object Componente -Match 'red|TCP|pktmon|DNS|conectividad' ).Count
@@ -2465,21 +2630,45 @@ $analisisResultados = @(
     '<h2>Guía de análisis de resultados</h2>'
     '<p>Lea primero esta guía y después confirme cada conclusión en la tabla o archivo indicado. Los números describen la ventana de captura; no son diagnósticos automáticos ni sustituyen la revisión del administrador.</p>'
     '<h3>1. Visor de eventos y estabilidad</h3>'
-    "<p>Se agruparon $cantidadEventosVisor grupos de eventos críticos o de error del sistema y de Application, $cantidadFallosAplicacion fallos recientes de aplicaciones, $cantidadEventosKaspersky eventos de Kaspersky y $cantidadEventosImpresion eventos del servicio de impresión. Revise proveedor, ID, nivel, hora, cantidad y mensaje: varios eventos del mismo proveedor en el mismo intervalo son más relevantes que un evento aislado.</p>"
-    '<ul><li>Confirme el evento en el Visor de eventos con la misma hora e ID, y compruebe si coincide con un reinicio, caída de red, instalación o ejecución de una aplicación.</li><li>Priorice errores repetidos, nuevos o coincidentes con síntomas del usuario. Un evento crítico aislado puede ser transitorio; la repetición y la correlación temporal aumentan su importancia.</li><li>Use <code>errores-eventos-sistema.csv</code>, <code>fallos-aplicaciones.csv</code>, <code>eventos-controladores.csv</code>, <code>eventos-impresion.csv</code>, <code>eventos-kaspersky.csv</code>, <code>historial-confiabilidad.csv</code> y <code>amenazas-defender.csv</code> como evidencia.</li></ul>'
+    "<p>Se agruparon $cantidadEventosVisor grupos de eventos críticos o de error del sistema y de Application, $cantidadFallosAplicacion fallos recientes de aplicaciones, $cantidadEventosKaspersky eventos de Kaspersky, $cantidadEventosImpresion eventos del servicio de impresión y $cantidadEventosSeguridad eventos de seguridad, PowerShell, Defender o firewall. Revise proveedor, ID, nivel, hora, cantidad y mensaje: varios eventos del mismo proveedor en el mismo intervalo son más relevantes que un evento aislado.</p>"
+    '<ul><li>Confirme el evento en el Visor de eventos con la misma hora e ID, y compruebe si coincide con un reinicio, caída de red, instalación, inicio de sesión o ejecución de una aplicación.</li><li>Priorice errores repetidos, nuevos o coincidentes con síntomas del usuario. Un evento crítico aislado puede ser transitorio; la repetición y la correlación temporal aumentan su importancia.</li><li>Use <code>errores-eventos-sistema.csv</code>, <code>eventos-seguridad-powerShell-firewall.csv</code>, <code>fallos-aplicaciones.csv</code>, <code>eventos-controladores.csv</code>, <code>eventos-impresion.csv</code>, <code>eventos-kaspersky.csv</code>, <code>historial-confiabilidad.csv</code> y <code>amenazas-defender.csv</code> como evidencia.</li></ul>'
     '<h3>2. Procesos y aplicaciones</h3>'
-    "<p>Se registraron $cantidadProcesosConsumo procesos con mayor consumo de memoria y $cantidadProcesosRed procesos asociados a conexiones de red. Compare nombre, PID, memoria, CPU, destinos, puertos y duración entre muestras; el consumo alto por sí solo no implica malware.</p>"
+    "<p>Se registraron $cantidadProcesosConsumo procesos con mayor consumo de memoria, $cantidadProcesosRed procesos asociados a conexiones TCP y $cantidadDetallesProcesos detalles enriquecidos de procesos observados. Compare nombre, PID, memoria, CPU, ruta, firma, destinos, puertos y duración entre muestras; el consumo alto por sí solo no implica malware.</p>"
     '<ul><li>Investigue primero un proceso desconocido, sin fabricante o ejecutado desde una ruta inusual, especialmente si mantiene conexiones públicas persistentes.</li><li>En la tabla "Resumen de conexiones por proceso" y <code>conexiones.csv</code>, compruebe <code>DestinosPublicosUnicos</code>, <code>MaximoConcurrentes</code>, <code>PuertosRemotosUnicos</code>, <code>Estado</code> y <code>PID</code>. Relacione el PID con el proceso activo y su ruta antes de escalar.</li><li>Contraste <code>procesos-mayor-consumo.csv</code>, <code>programas-inicio.csv</code>, <code>tareas-programadas-no-microsoft.csv</code>, <code>conexiones-chrome-resumen.csv</code> y las extensiones de Chrome. Navegadores, antivirus, actualizadores y sincronizadores pueden generar actividad legítima.</li></ul>'
     '<h3>3. Servicios</h3>'
-    "<p>Se encontraron $cantidadServiciosDetenidos servicios configurados para iniciar automáticamente pero detenidos y $cantidadServiciosKaspersky servicios relacionados con Kaspersky. Revise también el estado del Spooler, los productos antivirus y los controles de seguridad.</p>"
-    '<ul><li>Un servicio automático detenido puede explicar una falla funcional, pero también puede indicar una dependencia rota o una política. Confirme <code>Name</code>, <code>DisplayName</code>, <code>State</code>, <code>StartMode</code>, <code>ExitCode</code> y <code>PathName</code>.</li><li>Un servicio desconocido, con ruta temporal, firma ausente o cambio reciente requiere revisión de firma digital, fabricante, evento asociado y hash, no eliminación inmediata.</li><li>Use <code>servicios-automaticos-detenidos.csv</code>, <code>servicios-kaspersky.csv</code>, <code>productos-antivirus.csv</code>, <code>servicioImpresion</code> en el informe y <code>controles-seguridad.csv</code>.</li></ul>'
+    "<p>Se encontraron $cantidadServiciosDetenidos servicios configurados para iniciar automáticamente pero detenidos, $cantidadServiciosKaspersky servicios relacionados con Kaspersky y $cantidadServiciosSistema servicios inventariados. Revise también el estado del Spooler, los productos antivirus y los controles de seguridad.</p>"
+    '<ul><li>Un servicio automático detenido puede explicar una falla funcional, pero también puede indicar una dependencia rota o una política. Confirme <code>Name</code>, <code>DisplayName</code>, <code>State</code>, <code>StartMode</code>, <code>StartName</code>, <code>ExitCode</code> y <code>PathName</code>.</li><li>Un servicio desconocido, con ruta temporal, firma ausente o cambio reciente requiere revisión de firma digital, fabricante, evento asociado y hash, no eliminación inmediata.</li><li>Use <code>servicios-sistema.csv</code>, <code>servicios-automaticos-detenidos.csv</code>, <code>servicios-kaspersky.csv</code>, <code>productos-antivirus.csv</code>, <code>servicio de impresión</code> en el informe y <code>controles-seguridad.csv</code>.</li></ul>'
     '<h3>4. Red: IP, MAC, DNS y tráfico</h3>'
-    "<p>La captura contiene $cantidadConexiones observaciones TCP, $cantidadDestinosPublicos destinos públicos únicos, $cantidadPuertosEscucha puertos locales en escucha y $cantidadErroresRed errores o limitaciones de red registrados. Empiece por identificar la interfaz y su IP/MAC, después la puerta de enlace y DNS, y finalmente las conexiones del proceso.</p>"
-    '<ul><li>En <code>ipconfig.txt</code> y <code>configuracion-red.txt</code> confirme IPv4/IPv6, máscara, puerta de enlace, servidores DNS y estado de cada interfaz. En <code>adaptadores-red.csv</code> confirme nombre, MAC, velocidad, estado y controlador.</li><li>En <code>cache-dns.csv</code> revise nombres consultados, tipo, estado, TTL y dirección. Un dominio desconocido debe compararse con el proceso, la hora, el DNS institucional y la reputación corporativa; una entrada DNS sola no demuestra comunicación exitosa.</li><li>En <code>arp.txt</code> relacione IP y MAC de la red local. Una MAC nueva o duplicada debe validarse con el inventario de red y DHCP, porque también puede deberse a Wi-Fi, virtualización o cambios legítimos.</li><li>En <code>conexiones.csv</code>, <code>resumen-conexiones-por-proceso</code> y <code>puertos-en-escucha.csv</code> busque persistencia, puertos inesperados, muchos destinos, <code>SYN-SENT</code> repetido o servicios escuchando sin propietario conocido. Correlacione fecha, IP, MAC, puerto, protocolo y regla con FortiGate/FortiNAC.</li><li>Use <code>estadisticas-red.csv</code>, <code>pruebas-red.csv</code> y <code>captura.pcapng</code> o <code>captura.etl</code> cuando existan para separar pérdida, latencia o errores de conectividad de una actividad realmente sospechosa.</li></ul>'
+    "<p>La captura contiene $cantidadConexiones observaciones TCP, $cantidadConexionesUdp observaciones UDP, $cantidadDestinosPublicos destinos públicos únicos, $cantidadPuertosEscucha puertos locales en escucha, $cantidadReglasFirewall reglas de firewall habilitadas y $cantidadErroresRed errores o limitaciones de red registrados. Empiece por identificar la interfaz y su IP/MAC, después la puerta de enlace y DNS, y finalmente las conexiones del proceso.</p>"
+    '<ul><li>En <code>ipconfig.txt</code> y <code>configuracion-red.txt</code> confirme IPv4/IPv6, máscara, puerta de enlace, servidores DNS y estado de cada interfaz. En <code>adaptadores-red.csv</code> confirme nombre, MAC, velocidad, estado y controlador.</li><li>En <code>cache-dns.csv</code> revise nombres consultados, tipo, estado, TTL y dirección. Un dominio desconocido debe compararse con el proceso, la hora, el DNS institucional y la reputación corporativa; una entrada DNS sola no demuestra comunicación exitosa.</li><li>En <code>arp.txt</code> relacione IP y MAC de la red local. Una MAC nueva o duplicada debe validarse con el inventario de red y DHCP, porque también puede deberse a Wi-Fi, virtualización o cambios legítimos.</li><li>En <code>conexiones.csv</code>, <code>conexiones-udp.csv</code>, la tabla de resumen por proceso y <code>puertos-en-escucha.csv</code> busque persistencia, puertos inesperados, muchos destinos, <code>SYN-SENT</code> repetido o servicios escuchando sin propietario conocido. Correlacione fecha, IP, MAC, puerto, protocolo y regla con FortiGate/FortiNAC.</li><li>En <code>reglas-firewall-habilitadas.csv</code> busque reglas amplias, permisos de salida inesperados o programas no reconocidos; una regla permitida no demuestra que el tráfico sea legítimo.</li><li>Use <code>estadisticas-red.csv</code>, <code>pruebas-red.csv</code> y <code>captura.pcapng</code> o <code>captura.etl</code> cuando existan para separar pérdida, latencia o errores de conectividad de una actividad realmente sospechosa.</li></ul>'
     '<h3>5. Secuencia recomendada</h3>'
     '<ol><li>Defina el intervalo y el síntoma: qué ocurrió, a qué hora y qué usuario o aplicación lo reportó.</li><li>Lea primero los indicadores y errores de recopilación; después siga el PID/proceso, el servicio y el destino.</li><li>Valide nombres, IP, MAC, DNS, puerto, firma y autorización contra inventarios y registros institucionales.</li><li>Documente la evidencia original y escale solo después de la correlación. No borre servicios, procesos ni conexiones basándose en una sola fila.</li></ol>'
     "<p class='nota'><strong>Limitación:</strong> la auditoría observa una ventana temporal y conexiones visibles en el equipo. El cifrado impide ver el contenido, NAT/VPN puede ocultar el origen y las aplicaciones legítimas pueden usar CDN o muchos destinos. "
     'Un resultado “Revisar” significa que hay que investigar, no que se haya confirmado malware o exfiltración.</p>'
+) -join "`r`n"
+
+$estadoEjecutivo = if ($amenazas.Count -gt 0) {
+    'Crítico'
+}
+elseif ($indicadores.Count -gt 0 -or $errores.Count -gt 0) {
+    'Revisar'
+}
+else {
+    'Normal'
+}
+$recomendacionesEjecutivas = New-Object 'System.Collections.Generic.List[string]'
+if ($amenazas.Count -gt 0) { $recomendacionesEjecutivas.Add('Revisar inmediatamente las detecciones de Microsoft Defender y conservar sus evidencias.') }
+if ($indicadores.Count -gt 0) { $recomendacionesEjecutivas.Add('Validar cada indicador con el proceso, servicio, IP, puerto y registros de FortiGate/FortiNAC.') }
+if ($cantidadEventosVisor -gt 0 -or $cantidadFallosAplicacion -gt 0) { $recomendacionesEjecutivas.Add('Correlacionar los eventos repetidos con la hora del síntoma y confirmar su origen en el Visor de eventos.') }
+if ($cantidadServiciosDetenidos -gt 0) { $recomendacionesEjecutivas.Add('Comprobar dependencias, ruta, firma y política de los servicios automáticos detenidos.') }
+if ($cantidadErroresRed -gt 0) { $recomendacionesEjecutivas.Add('Resolver las limitaciones de recopilación antes de considerar completa la conclusión de red.') }
+if ($recomendacionesEjecutivas.Count -eq 0) { $recomendacionesEjecutivas.Add('No se requieren acciones urgentes; conservar el informe como línea base y repetir la captura si el síntoma continúa.') }
+$resumenEjecutivo = @(
+    "<h2>Resumen ejecutivo</h2><p class='estado'><strong>Estado general:</strong> $estadoEjecutivo</p>"
+    "<p>Se observaron $cantidadConexiones conexiones TCP, $cantidadConexionesUdp UDP, $cantidadEventosVisor grupos de eventos del sistema, $cantidadProcesosRed procesos de red, $cantidadServiciosSistema servicios y $cantidadReglasFirewall reglas de firewall habilitadas.</p>"
+    '<h3>Acciones recomendadas</h3><ul>'
+    (($recomendacionesEjecutivas | ForEach-Object { "<li>$_</li>" }) -join '')
+    '</ul><p>Este resumen prioriza la revisión técnica. No confirma por sí solo infección, exfiltración, fallo físico ni incumplimiento de licencia.</p>'
 ) -join "`r`n"
 
 $estilo = @'
@@ -2491,12 +2680,14 @@ th, td { border: 1px solid #cbd5e1; padding: 6px; text-align: left; }
 th { background: #e2e8f0; }
 .nota { background: #fff7d6; border-left: 4px solid #d69e2e; padding: 12px; }
 .conclusion { background: #edf7ed; border-left: 4px solid #2e7d32; padding: 12px; }
+.estado { background: #eef2ff; border-left: 4px solid #4f46e5; padding: 12px; font-size: 1.1em; }
 </style>
 '@
 
 $contenido = @(
     '<h1>Informe de soporte</h1>'
     "<p class='conclusion'><strong>Resultado:</strong> $conclusion</p>"
+    $resumenEjecutivo
     $analisisResultados
     "<p class='nota'><strong>Alcance:</strong> los indicadores se basan en conexiones visibles desde el equipo y no constituyen por sí solos una confirmación de incidente. Deben correlacionarse por fecha, IP, MAC, puerto y aplicación con los registros institucionales de Fortinet.</p>"
     "<p class='nota'><strong>Chrome:</strong> las extensiones corresponden al perfil de Windows que ejecutó el script. Una cantidad alta de conexiones de Chrome puede ser normal por pestañas, extensiones y redes CDN; debe contrastarse con los destinos y eventos del firewall.</p>"
@@ -2542,12 +2733,19 @@ $contenido = @(
     (Convertir-FragmentoHtml @($procesosConsumo) 'Procesos con mayor consumo de memoria')
     (Convertir-FragmentoHtml @($volcadosSistema) 'Volcados de fallos recientes' 'No se encontraron volcados recientes.')
     (Convertir-FragmentoHtml @($eventosAplicaciones | Select-Object -First 100) 'Fallos recientes de aplicaciones' 'No se encontraron eventos recientes de fallos de aplicaciones.')
+    (Convertir-FragmentoHtml @($eventosSeguridad | Select-Object -First 500) 'Eventos de seguridad, PowerShell, Defender y firewall' 'No se encontraron eventos en los registros consultados o no hubo permisos para leerlos.')
     (Convertir-FragmentoHtml @($registrosConfiabilidad | Select-Object -First 100) 'Historial de confiabilidad' 'No se recopiló historial de confiabilidad o no hubo registros.')
     (Convertir-FragmentoHtml @($confiabilidadDiscos) 'SMART y confiabilidad de discos' 'El dispositivo no publicó contadores SMART o el modo seleccionado no los consulta.')
     (Convertir-FragmentoHtml @($hardware) 'Inventario de hardware avanzado' 'El modo seleccionado no recopila el inventario avanzado.')
     (Convertir-FragmentoHtml @($equipoDominio) 'Equipo y pertenencia al dominio')
     (Convertir-FragmentoHtml ($pruebasRed.ToArray()) 'Pruebas de conectividad y DNS' 'El modo seleccionado no ejecuta pruebas activas de red.')
     (Convertir-FragmentoHtml @($adaptadoresRed) 'Adaptadores de red')
+    (Convertir-FragmentoHtml @($configuracionesIp) 'Configuración IP estructurada' 'No se obtuvo configuración IP estructurada.')
+    (Convertir-FragmentoHtml @($servidoresDns) 'Servidores DNS configurados' 'No se obtuvieron servidores DNS configurados.')
+    (Convertir-FragmentoHtml @($tablaArp) 'Tabla ARP' 'No se obtuvo la tabla ARP.')
+    (Convertir-FragmentoHtml @($dns | Select-Object -First 500) 'Caché DNS observada' 'No se obtuvo la caché DNS.')
+    (Convertir-FragmentoHtml @($estadisticasRed | Select-Object -First 500) 'Estadísticas de interfaces de red' 'No se obtuvieron estadísticas de interfaces.')
+    (Convertir-FragmentoHtml @($conexiones | Select-Object -First 500) 'Conexiones TCP observadas' 'No se observaron conexiones TCP.')
     (Convertir-FragmentoHtml @($certificadosProximos) "Certificados personales vencidos o próximos a vencer en $DiasAvisoCertificado días" 'No se encontraron certificados dentro del periodo de aviso.')
     (Convertir-FragmentoHtml @($cuentasLocales) 'Cuentas locales')
     (Convertir-FragmentoHtml @($recursosCompartidos) 'Recursos compartidos SMB')
@@ -2559,6 +2757,10 @@ $contenido = @(
     (Convertir-FragmentoHtml ($verificacionSistema.ToArray()) 'Verificación de integridad DISM/SFC' 'No se solicitó la verificación opcional DISM/SFC.')
     (Convertir-FragmentoHtml @($resumenProcesos | Select-Object -First 50) 'Resumen de conexiones por proceso')
     (Convertir-FragmentoHtml @($puertosEscucha) 'Puertos TCP en escucha')
+    (Convertir-FragmentoHtml @($conexionesUdp | Select-Object -First 500) 'Conexiones UDP observadas' 'No se observaron conexiones UDP.')
+    (Convertir-FragmentoHtml @($detallesProcesos | Sort-Object Fecha -Descending | Select-Object -First 500) 'Detalles de procesos de red' 'No se obtuvieron detalles de procesos de red.')
+    (Convertir-FragmentoHtml @($serviciosSistema) 'Inventario completo de servicios')
+    (Convertir-FragmentoHtml @($reglasFirewall | Select-Object -First 500) 'Reglas de firewall habilitadas' 'No se obtuvieron reglas de firewall habilitadas.')
     (Convertir-FragmentoHtml @($resumenChrome | Select-Object -First 100) 'Principales conexiones de Google Chrome' 'No se observaron conexiones de Chrome durante la auditoría.')
     (Convertir-FragmentoHtml ($versionesChrome.ToArray()) 'Versiones instaladas de Google Chrome' 'No se encontró una instalación estándar de Google Chrome.')
     (Convertir-FragmentoHtml ($extensionesChrome.ToArray()) 'Extensiones instaladas en Google Chrome' 'No se encontraron extensiones en los perfiles del usuario que ejecutó la auditoría.')

@@ -126,6 +126,13 @@ Extra switches available on `Auditar-Trafico.ps1`:
 11. Offer a dedicated low-risk optimization action (Recycle Bin, DNS cache,
     Explorer thumbnail/icon cache, DISM component cleanup) that never
     touches user documents, downloads, or installed applications.
+12. Include an executive summary and pedagogical interpretation of every
+  result block: event logs, processes, services, TCP/UDP, IP, MAC, DNS, ARP,
+  firewall, performance, storage, printers, updates, licensing, and errors.
+13. Preserve structured evidence for process paths, signatures, users and
+  command lines when available; export UDP endpoints, configured IP/DNS/ARP,
+  enabled firewall rules, complete services, and security/PowerShell/Defender
+  events in addition to the human-readable HTML report.
 
 ## Cleanup safety
 
@@ -166,6 +173,12 @@ When the user supplies `errores.txt`:
 Account for Windows PowerShell 5.1 behavior, especially native stderr,
 `$ErrorActionPreference = 'Stop'`, generic lists, empty-array parameter
 binding, COM objects, and cmdlet availability.
+
+The final report must explain how to interpret each evidence block and must
+distinguish `Normal`, `Revisar`, and `Crítico`. A single public IP, process,
+event, service, DNS entry, or failed ping is not proof of malware or an
+incident; correlate time, process, PID, service, IP, MAC, DNS, port, protocol,
+firewall rule, and FortiGate/FortiNAC records before escalating.
 
 To parse-check a script on Linux without root, download a portable
 PowerShell build instead of guessing at syntax:
