@@ -45,6 +45,12 @@ param(
 
     [switch]$OptimizarSistema,
 
+    [switch]$ActualizarWindows,
+
+    [switch]$DesfragmentarDiscos,
+
+    [switch]$MostrarLicencias,
+
     [switch]$AutoEliminarAlCerrar,
 
     [switch]$NoAutoAbrirReporte
@@ -374,6 +380,67 @@ function Optimizar-Sistema {
     return $resultados.ToArray()
 }
 
+function Actualizar-WindowsOficial {
+    Write-Etapa 'Preparando PSWindowsUpdate para buscar actualizaciones...'
+    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+    if (-not (Get-Module -ListAvailable -Name PSWindowsUpdate)) {
+        Write-Etapa 'Instalando el módulo oficial PSWindowsUpdate desde PowerShell Gallery...'
+        Install-Module PSWindowsUpdate -Force -Scope AllUsers -AllowClobber
+    }
+
+    Import-Module PSWindowsUpdate -ErrorAction Stop
+    Write-Etapa 'Buscando, descargando e instalando actualizaciones de Microsoft...'
+    $resultado = @(Get-WindowsUpdate -MicrosoftUpdate -Install -AcceptAll -AutoReboot 2>&1 | ForEach-Object {
+        Write-Host ("  Windows Update: {0}" -f $_) -ForegroundColor Gray
+        $_
+    })
+    return $resultado | ForEach-Object {
+        [pscustomobject]@{
+            Accion    = 'Windows Update'
+            Resultado = [string]$_
+            Detalle   = 'PSWindowsUpdate; se solicitó reinicio automático si era necesario.'
+        }
+    }
+}
+
+function Desfragmentar-DiscosFijos {
+    $resultados = New-Object 'System.Collections.Generic.List[object]'
+    $discos = @(Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3' |
+        Where-Object DeviceID |
+        Sort-Object DeviceID)
+    if ($discos.Count -eq 0) {
+        return @([pscustomobject]@{
+            Unidad    = '-'
+            Resultado = 'No se encontraron discos fijos'
+            Detalle   = '-'
+        })
+    }
+
+    foreach ($disco in $discos) {
+        $unidad = $disco.DeviceID.TrimEnd(':')
+        Write-Etapa "Optimizando la unidad $($disco.DeviceID)..."
+        try {
+            $salida = @(Optimize-Volume -DriveLetter $unidad -Defrag -Verbose 4>&1 | ForEach-Object {
+                Write-Host ("  $($disco.DeviceID): {0}" -f $_) -ForegroundColor Gray
+                $_
+            })
+            $resultados.Add([pscustomobject]@{
+                Unidad    = $disco.DeviceID
+                Resultado = 'Optimización completada'
+                Detalle   = ($salida | Out-String).Trim()
+            })
+        }
+        catch {
+            $resultados.Add([pscustomobject]@{
+                Unidad    = $disco.DeviceID
+                Resultado = 'Error'
+                Detalle   = $_.Exception.Message
+            })
+        }
+    }
+    return $resultados.ToArray()
+}
+
 function Limpiar-PC-Profesional {
     param(
         [Parameter()][int]$DiasAntiguo = 30
@@ -508,6 +575,15 @@ $pktmonActivo = $false
 $archivoEtl = Join-Path $carpeta 'captura.etl'
 $archivoPcapng = Join-Path $carpeta 'captura.pcapng'
 $resultadoLimpiezaSpooler = $null
+$estadosLicencia = @{
+    0 = 'Sin licencia'
+    1 = 'Con licencia'
+    2 = 'Periodo de gracia inicial'
+    3 = 'Periodo de gracia adicional'
+    4 = 'Periodo de gracia no genuino'
+    5 = 'Modo notificación'
+    6 = 'Periodo de gracia extendido'
+}
 
 function Registrar-ErrorAuditoria {
     param(
@@ -562,6 +638,43 @@ function Write-Etapa {
     param([Parameter(Mandatory)][string]$Mensaje)
     Write-Host "  i  [$((Get-Date).ToString('HH:mm:ss'))] " -NoNewline -ForegroundColor Cyan
     Write-Host $Mensaje -ForegroundColor White
+}
+
+function Guardar-InformeAccion {
+    param(
+        [Parameter(Mandatory)][string]$Titulo,
+        [Parameter(Mandatory)][string]$Nota,
+        [Parameter(Mandatory)][object[]]$Datos,
+        [Parameter(Mandatory)][string]$NombreCsv
+    )
+
+    $Datos | Export-Csv (Join-Path $carpeta $NombreCsv) -NoTypeInformation -Encoding UTF8
+    $estiloAccion = @'
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; margin: 32px; color: #1f2937; }
+h1, h2 { color: #17365d; }
+table { border-collapse: collapse; width: 100%; margin-bottom: 24px; }
+th, td { border: 1px solid #cbd5e1; padding: 6px; text-align: left; }
+th { background: #e2e8f0; }
+.nota { background: #fff7d6; border-left: 4px solid #d69e2e; padding: 12px; }
+</style>
+'@
+    $contenidoAccion = @(
+        "<h1>$Titulo</h1>"
+        "<p class='nota'>$Nota</p>"
+        (Convertir-FragmentoHtml $Datos 'Resultado')
+    ) -join "`r`n"
+    $archivoInformeAccion = Join-Path $carpeta 'informe-de-soporte.html'
+    Write-Etapa 'Generando el informe...'
+    ConvertTo-Html -Title $Titulo -Head $estiloAccion -Body $contenidoAccion |
+        Out-File $archivoInformeAccion -Encoding utf8
+    $hashesAccion = @(Get-ChildItem $carpeta -File |
+        Where-Object Name -ne 'hashes-sha256.csv' |
+        Get-FileHash -Algorithm SHA256 |
+        Select-Object Path, Algorithm, Hash)
+    $hashesAccion | Export-Csv (Join-Path $carpeta 'hashes-sha256.csv') -NoTypeInformation -Encoding UTF8
+    Write-Host "Informe generado: $archivoInformeAccion" -ForegroundColor Green
+    Finalizar-InformeYLimpiar -RutaInforme $archivoInformeAccion -CarpetaAuditoria $carpeta -AutoEliminar $AutoEliminarAlCerrar -AbrirReporte (-not $NoAutoAbrirReporte)
 }
 
 if ($Modo -eq 'Limpieza') {
@@ -723,6 +836,49 @@ th { background: #e2e8f0; }
 
     Write-Host "Optimización finalizada. Informe: $archivoInformeOptimizacion" -ForegroundColor Green
     Finalizar-InformeYLimpiar -RutaInforme $archivoInformeOptimizacion -CarpetaAuditoria $carpeta -AutoEliminar $AutoEliminarAlCerrar -AbrirReporte (-not $NoAutoAbrirReporte)
+    return
+}
+
+if ($ActualizarWindows) {
+    Write-Etapa 'Iniciando actualización oficial de Windows...'
+    $resultadoActualizacion = @(Actualizar-WindowsOficial)
+    Guardar-InformeAccion -Titulo 'Informe de soporte - Actualización de Windows' `
+        -Nota 'Se utilizó el módulo PSWindowsUpdate para buscar, descargar e instalar actualizaciones de Microsoft. El equipo puede reiniciarse automáticamente si Windows Update lo requiere.' `
+        -Datos $resultadoActualizacion -NombreCsv 'actualizaciones-windows.csv'
+    return
+}
+
+if ($DesfragmentarDiscos) {
+    Write-Etapa 'Iniciando optimización de discos fijos...'
+    $resultadoDesfragmentacion = @(Desfragmentar-DiscosFijos)
+    Guardar-InformeAccion -Titulo 'Informe de soporte - Optimización de discos' `
+        -Nota 'Se ejecutó Optimize-Volume -Defrag sobre las unidades fijas detectadas. Windows decide internamente el método apropiado para cada unidad.' `
+        -Datos $resultadoDesfragmentacion -NombreCsv 'desfragmentacion-discos.csv'
+    return
+}
+
+if ($MostrarLicencias) {
+    Write-Etapa 'Consultando el estado oficial de licencias de Windows y Microsoft...'
+    $resultadoLicencias = @(
+        Get-CimInstance SoftwareLicensingProduct -ErrorAction SilentlyContinue |
+            Where-Object PartialProductKey |
+            ForEach-Object {
+                [pscustomobject]@{
+                    Producto          = $_.Name
+                    Descripcion       = $_.Description
+                    EstadoLicencia    = $estadosLicencia[[int]$_.LicenseStatus]
+                    UltimosCaracteres = $_.PartialProductKey
+                    Id                = $_.ID
+                }
+            }
+    )
+    try {
+        Start-Process 'ms-settings:activation' -ErrorAction SilentlyContinue
+    }
+    catch {}
+    Guardar-InformeAccion -Titulo 'Informe de soporte - Licencias de Windows y Microsoft' `
+        -Nota 'Se consultó la información publicada por Windows y se abrió la página oficial de Activación. Windows no puede determinar la licencia de todos los productos de terceros. No se ejecutaron activadores ni scripts descargados de Internet.' `
+        -Datos $resultadoLicencias -NombreCsv 'licencias-windows-microsoft.csv'
     return
 }
 
@@ -1647,15 +1803,6 @@ $softwareInstalado = @($softwareInstalado |
 $softwareInstalado |
     Export-Csv (Join-Path $carpeta 'software-instalado.csv') -NoTypeInformation -Encoding UTF8
 
-$estadosLicencia = @{
-    0 = 'Sin licencia'
-    1 = 'Con licencia'
-    2 = 'Periodo de gracia inicial'
-    3 = 'Periodo de gracia adicional'
-    4 = 'Periodo de gracia no genuino'
-    5 = 'Modo notificación'
-    6 = 'Periodo de gracia extendido'
-}
 $licenciasMicrosoft = @()
 try {
     $licenciasMicrosoft = @(Get-CimInstance SoftwareLicensingProduct |

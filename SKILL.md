@@ -18,7 +18,8 @@ personal documents or download folders.
 
 - `scripts/Auditar-Trafico.ps1`: diagnostic and reporting engine.
 - `scripts/Ejecutar-Soporte.cmd`: elevated interactive launcher with a styled
-  menu (icons, confirm prompts, colored status markers).
+  menu (icons, confirm prompts, colored status markers, update, disk
+  optimization, and official license-status actions).
 - `scripts/Ejecutar-Soporte-Drive.ps1`: Google Drive downloader and launcher.
 - `scripts/Ejecutar-Soporte-GitHub.ps1`: GitHub downloader and launcher.
 - `scripts/launcher.c`: C source for `Soporte-PC.exe`, a native Windows binary
@@ -81,6 +82,17 @@ Extra switches available on `Auditar-Trafico.ps1`:
   `DISM /Online /Cleanup-Image /StartComponentCleanup`, writes a short
   report, and returns immediately without running the rest of the
   diagnostic. Low-risk, performance-oriented maintenance only.
+- `-ActualizarWindows`: installs the official `PSWindowsUpdate` module when
+  needed, then searches, downloads, and installs Microsoft updates with
+  `Get-WindowsUpdate -MicrosoftUpdate -Install -AutoReboot`. The process may
+  restart the computer automatically when required.
+- `-DesfragmentarDiscos`: runs `Optimize-Volume -Defrag` on detected fixed
+  drives and writes the result to the report. Windows chooses the appropriate
+  optimization method for each drive.
+- `-MostrarLicencias`: reports Windows and Microsoft licensing information and
+  opens the official Windows Activation settings page. It does not execute
+  activators or scripts downloaded from the Internet; third-party licenses
+  must be verified with their respective vendors.
 - `-Modo Limpieza`: the professional cleanup workflow for the end user. It
   targets temporary directories, old Chrome cache subfolders, the DNS cache,
   and the Recycle Bin, while intentionally preserving the user profile,

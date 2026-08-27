@@ -55,6 +55,9 @@ $opciones = [ordered]@{
     '4' = @{ Icon = '[L]'; Label = 'Limpieza de Temporales'; Desc = '(Libera espacio en discos de cache antiguos)'; Params = @{ Modo = 'Limpieza'; AutoEliminarAlCerrar = $true } }
     '5' = @{ Icon = '[P]'; Label = 'Liberar Cola Impresion'; Desc = '(Solo: cancela trabajos atascados y reinicia Spooler)'; Params = @{ LimpiarColaImpresion = $true; AutoEliminarAlCerrar = $true } }
     '6' = @{ Icon = '[O]'; Label = 'Optimizacion Rapida'; Desc = '(Papelera, cache DNS/iconos y limpieza de WinSxS)'; Params = @{ OptimizarSistema = $true; AutoEliminarAlCerrar = $true } }
+    '7' = @{ Icon = '[U]'; Label = 'Actualizar Windows'; Desc = '(Busca, instala y puede reiniciar el equipo)'; Params = @{ ActualizarWindows = $true; AutoEliminarAlCerrar = $true } }
+    '8' = @{ Icon = '[D]'; Label = 'Desfragmentar Discos'; Desc = '(Optimiza las unidades fijas detectadas)'; Params = @{ DesfragmentarDiscos = $true; AutoEliminarAlCerrar = $true } }
+    '9' = @{ Icon = '[L]'; Label = 'Licencias'; Desc = '(Consulta activacion oficial de Windows y Microsoft)'; Params = @{ MostrarLicencias = $true; AutoEliminarAlCerrar = $true } }
 }
 
 while ($true) {
@@ -129,7 +132,7 @@ while ($true) {
     }
     else {
         Write-Host ''
-        Write-Warn ('"{0}" no es una opcion valida. Ingrese un numero del 1 al 6, o 0 para salir.' -f $opc)
+        Write-Warn ('"{0}" no es una opcion valida. Ingrese un numero del 1 al 9, o 0 para salir.' -f $opc)
         Write-Pausar
     }
 }
