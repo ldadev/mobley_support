@@ -30,6 +30,15 @@ personal documents or download folders.
 
 Keep the PowerShell script and CMD launcher in the same directory.
 
+## Publication workflow
+
+Any change to `scripts/Auditar-Trafico.ps1` must be published to GitHub after
+validation. Review the diff, run the available syntax or behavior checks, then
+create a descriptive commit and push it to `origin/main`. Confirm that the
+working tree is clean and that the local `main` branch matches `origin/main`
+before reporting the change as complete. Do not leave changes to this script
+only in the local workspace.
+
 Recompile `Soporte-PC.exe` after changing `launcher.c`:
 
 ```bash
