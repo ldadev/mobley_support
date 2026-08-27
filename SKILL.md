@@ -66,6 +66,7 @@ Run directly when needed:
 .\Auditar-Trafico.ps1 -Modo Red -DuracionMinutos 60
 .\Auditar-Trafico.ps1 -Modo Completo -IncluirVerificacionSistema
 .\Auditar-Trafico.ps1 -Modo Limpieza -DiasTemporalAntiguo 30
+.\Auditar-Trafico.ps1 -Modo Red -AuditoriaAnterior 'C:\AuditoriaRed\Auditoria-PC-20260827-120000'
 ```
 
 Prefer `Ejecutar-Soporte.cmd` (or `Soporte-PC.exe` for end users without
@@ -101,6 +102,14 @@ Extra switches available on `Auditar-Trafico.ps1`:
   `C:\AuditoriaRed`, opens the HTML report automatically, and deletes the
   temporary evidence folder only after the user presses a key to exit.
 - `-NoAutoAbrirReporte`: skip auto-opening the HTML report.
+- `-AuditoriaAnterior`: optional path to a previous audit folder. The report
+  compares processes, listening ports, services, and configured DNS servers,
+  and writes `comparacion-auditoria-anterior.csv`.
+
+Every completed audit also creates a ZIP package beside its evidence folder.
+The package contains the HTML report, CSV files, logs, and SHA-256 manifest.
+When `-AutoEliminarAlCerrar` is used, the evidence folder is removed after
+exit but the ZIP remains available in the output directory.
 
 ## Required behavior
 

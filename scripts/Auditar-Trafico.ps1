@@ -35,6 +35,8 @@ param(
 
     [string]$DirectorioSalida = '',
 
+    [string]$AuditoriaAnterior = '',
+
     [switch]$SinCapturaPktmon,
 
     [switch]$IncluirVerificacionSistema,
@@ -576,6 +578,7 @@ $sistemaOperativo = @()
 $pktmonActivo = $false
 $archivoEtl = Join-Path $carpeta 'captura.etl'
 $archivoPcapng = Join-Path $carpeta 'captura.pcapng'
+$archivoPaqueteEvidencias = Join-Path $DirectorioSalida "Auditoria-$env:COMPUTERNAME-$marca.zip"
 $resultadoLimpiezaSpooler = $null
 $serviciosSistema = @()
 $reglasFirewall = @()
@@ -677,6 +680,13 @@ th { background: #e2e8f0; }
         Get-FileHash -Algorithm SHA256 |
         Select-Object Path, Algorithm, Hash)
     $hashesAccion | Export-Csv (Join-Path $carpeta 'hashes-sha256.csv') -NoTypeInformation -Encoding UTF8
+    try {
+        Compress-Archive -Path (Join-Path $carpeta '*') -DestinationPath $archivoPaqueteEvidencias -Force
+        Write-Host "Paquete de evidencias generado: $archivoPaqueteEvidencias" -ForegroundColor Green
+    }
+    catch {
+        Write-Warn "No se pudo crear el paquete ZIP: $($_.Exception.Message)"
+    }
     Write-Host "Informe generado: $archivoInformeAccion" -ForegroundColor Green
     Finalizar-InformeYLimpiar -RutaInforme $archivoInformeAccion -CarpetaAuditoria $carpeta -AutoEliminar $AutoEliminarAlCerrar -AbrirReporte (-not $NoAutoAbrirReporte)
 }
@@ -1163,6 +1173,9 @@ try {
         Select-Object Entry, RecordName, RecordType, Status, Section, TimeToLive, Data)
     $dns | Export-Csv (Join-Path $carpeta 'cache-dns.csv') -NoTypeInformation -Encoding UTF8
 }
+catch {
+    Registrar-ErrorAuditoria 'Get-DnsClientCache' $_.Exception.Message
+}
 
 $configuracionesIp = @()
 $servidoresDns = @()
@@ -1184,9 +1197,6 @@ try {
 }
 catch {
     Registrar-ErrorAuditoria 'Configuración IP, DNS o ARP' $_.Exception.Message
-}
-catch {
-    Registrar-ErrorAuditoria 'Get-DnsClientCache' $_.Exception.Message
 }
 
 $amenazas = @()
@@ -2509,6 +2519,79 @@ $resumenChrome = @($conexiones |
     Sort-Object Observaciones -Descending)
 $resumenChrome |
     Export-Csv (Join-Path $carpeta 'conexiones-chrome-resumen.csv') -NoTypeInformation -Encoding UTF8
+$resumenProcesos |
+    Export-Csv (Join-Path $carpeta 'resumen-conexiones-por-proceso.csv') -NoTypeInformation -Encoding UTF8
+
+$comparacionAnterior = @()
+if (-not [string]::IsNullOrWhiteSpace($AuditoriaAnterior)) {
+    Write-Etapa 'Comparando esta auditoría con la línea base anterior...'
+    if (-not (Test-Path -LiteralPath $AuditoriaAnterior -PathType Container)) {
+        $comparacionAnterior = @([pscustomobject]@{
+            Categoria = 'Comparación'
+            Elemento  = $AuditoriaAnterior
+            Cambio    = 'No disponible'
+            Detalle   = 'La carpeta indicada no existe o no es una carpeta de auditoría.'
+        })
+    }
+    else {
+        $comparacionAnterior = New-Object 'System.Collections.Generic.List[object]'
+        $comparaciones = @(
+            [pscustomobject]@{ Nombre = 'resumen-conexiones-por-proceso.csv'; Categoria = 'Procesos de red'; Clave = 'Proceso' }
+            [pscustomobject]@{ Nombre = 'puertos-en-escucha.csv'; Categoria = 'Puertos en escucha'; Clave = 'PuertoLocal' }
+            [pscustomobject]@{ Nombre = 'servicios-sistema.csv'; Categoria = 'Servicios'; Clave = 'Name' }
+            [pscustomobject]@{ Nombre = 'servidores-dns-configurados.csv'; Categoria = 'Servidores DNS'; Clave = 'ServerAddresses' }
+        )
+        foreach ($comparacion in $comparaciones) {
+            $rutaAnterior = Join-Path $AuditoriaAnterior $comparacion.Nombre
+            if (-not (Test-Path -LiteralPath $rutaAnterior)) {
+                $comparacionAnterior.Add([pscustomobject]@{
+                    Categoria = $comparacion.Categoria
+                    Elemento  = '-'
+                    Cambio    = 'Sin línea base'
+                    Detalle   = "No existe $($comparacion.Nombre) en la auditoría anterior."
+                })
+                continue
+            }
+            $actuales = switch ($comparacion.Nombre) {
+                'resumen-conexiones-por-proceso.csv' { @($resumenProcesos) }
+                'puertos-en-escucha.csv' { @($puertosEscucha) }
+                'servicios-sistema.csv' { @($serviciosSistema) }
+                'servidores-dns-configurados.csv' { @($servidoresDns) }
+            }
+            $anteriores = @(Import-Csv $rutaAnterior -ErrorAction SilentlyContinue)
+            $actualesClaves = @($actuales | ForEach-Object { [string]$_.$($comparacion.Clave) } | Sort-Object -Unique)
+            $anterioresClaves = @($anteriores | ForEach-Object { [string]$_.$($comparacion.Clave) } | Sort-Object -Unique)
+            foreach ($elementoNuevo in @($actualesClaves | Where-Object { $_ -and $_ -notin $anterioresClaves })) {
+                $comparacionAnterior.Add([pscustomobject]@{
+                    Categoria = $comparacion.Categoria
+                    Elemento  = $elementoNuevo
+                    Cambio    = 'Nuevo'
+                    Detalle   = "Aparece en esta auditoría y no en $($comparacion.Nombre) de la línea base."
+                })
+            }
+            foreach ($elementoAusente in @($anterioresClaves | Where-Object { $_ -and $_ -notin $actualesClaves })) {
+                $comparacionAnterior.Add([pscustomobject]@{
+                    Categoria = $comparacion.Categoria
+                    Elemento  = $elementoAusente
+                    Cambio    = 'Ya no observado'
+                    Detalle   = 'Estaba presente en la línea base y no apareció en esta ventana.'
+                })
+            }
+            if ($actualesClaves.Count -eq $anterioresClaves.Count -and
+                @($comparacionAnterior | Where-Object Categoria -eq $comparacion.Categoria).Count -eq 0) {
+                $comparacionAnterior.Add([pscustomobject]@{
+                    Categoria = $comparacion.Categoria
+                    Elemento  = '-'
+                    Cambio    = 'Sin cambios'
+                    Detalle   = 'No cambiaron los elementos identificados.'
+                })
+            }
+        }
+        $comparacionAnterior = $comparacionAnterior.ToArray()
+    }
+    $comparacionAnterior |
+        Export-Csv (Join-Path $carpeta 'comparacion-auditoria-anterior.csv') -NoTypeInformation -Encoding UTF8
+}
 
 $indicadores = New-Object 'System.Collections.Generic.List[object]'
 foreach ($control in @($controlesSeguridad | Where-Object Resultado -eq 'Revisar')) {
@@ -2599,6 +2682,8 @@ $metadatos = [pscustomobject]@{
     CapturaPcapngDisponible        = Test-Path $archivoPcapng
     VerificacionSfcDismSolicitada  = [bool]$IncluirVerificacionSistema
     LimpiezaTemporalesSolicitada   = [bool]$EliminarTemporales
+    AuditoriaAnterior              = if ($AuditoriaAnterior) { $AuditoriaAnterior } else { 'No especificada' }
+    PaqueteEvidencias               = $archivoPaqueteEvidencias
 }
 $metadatos | ConvertTo-Json | Out-File (Join-Path $carpeta 'metadatos.json') -Encoding utf8
 
@@ -2710,6 +2795,7 @@ $contenido = @(
     (Convertir-FragmentoHtml @($metadatos) 'Datos de la auditoría')
     (Convertir-FragmentoHtml @($sistemaOperativo) 'Sistema operativo')
     (Convertir-FragmentoHtml ($indicadores.ToArray()) 'Indicadores que requieren revisión' 'No se detectaron indicadores que superaran los umbrales configurados.')
+    (Convertir-FragmentoHtml @($comparacionAnterior) 'Comparación con auditoría anterior' 'No se solicitó una comparación con -AuditoriaAnterior.')
     (Convertir-FragmentoHtml ($controlesSeguridad.ToArray()) 'Diagnóstico de seguridad de Windows')
     (Convertir-FragmentoHtml @($temporales) "Archivos temporales antes de la limpieza (antiguos: más de $DiasTemporalAntiguo días)")
     (Convertir-FragmentoHtml @($limpiezaTemporales) 'Resultado de la limpieza de temporales' 'No se solicitó eliminar archivos temporales.')
@@ -2786,6 +2872,13 @@ $hashes = @(Get-ChildItem $carpeta -File |
     Get-FileHash -Algorithm SHA256 |
     Select-Object Path, Algorithm, Hash)
 $hashes | Export-Csv (Join-Path $carpeta 'hashes-sha256.csv') -NoTypeInformation -Encoding UTF8
+try {
+    Compress-Archive -Path (Join-Path $carpeta '*') -DestinationPath $archivoPaqueteEvidencias -Force
+    Write-Host "Paquete de evidencias generado: $archivoPaqueteEvidencias" -ForegroundColor Green
+}
+catch {
+    Write-Warn "No se pudo crear el paquete ZIP: $($_.Exception.Message)"
+}
 
 Write-Host "Auditoría finalizada. Informe: $archivoInforme" -ForegroundColor Green
 Write-Host "Indicadores para revisión: $($indicadores.Count)"
