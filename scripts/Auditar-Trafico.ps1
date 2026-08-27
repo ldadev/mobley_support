@@ -370,6 +370,113 @@ function Optimizar-Sistema {
     return $resultados.ToArray()
 }
 
+function Limpiar-PC-Profesional {
+    param(
+        [Parameter()][int]$DiasAntiguo = 30
+    )
+
+    $resultados = New-Object 'System.Collections.Generic.List[object]'
+    $rutasObjetivo = New-Object 'System.Collections.Generic.List[string]'
+
+    foreach ($rutaTemporal in @($env:TEMP, (Join-Path $env:windir 'Temp'))) {
+        if ($rutaTemporal -and -not $rutasObjetivo.Contains($rutaTemporal)) {
+            $rutasObjetivo.Add($rutaTemporal)
+        }
+    }
+
+    $datosChromeLimpieza = Join-Path $env:LOCALAPPDATA 'Google\Chrome\User Data'
+    if (Test-Path $datosChromeLimpieza) {
+        $perfilesChromeLimpieza = @(Get-ChildItem $datosChromeLimpieza -Directory -ErrorAction SilentlyContinue |
+            Where-Object Name -Match '^(Default|Profile \d+)$')
+        foreach ($perfilChrome in $perfilesChromeLimpieza) {
+            foreach ($subruta in @('Cache', 'Code Cache', 'GPUCache')) {
+                $rutaCache = Join-Path $perfilChrome.FullName $subruta
+                if (Test-Path $rutaCache -PathType Container) {
+                    $rutasObjetivo.Add($rutaCache)
+                }
+            }
+        }
+    }
+
+    foreach ($ruta in @($rutasObjetivo | Sort-Object -Unique)) {
+        $estadoAntes = Get-ResumenDirectorio -Ruta $ruta -DiasAntiguo $DiasAntiguo
+        $resultadoLimpieza = Remove-ArchivosTemporalesAntiguos -Ruta $ruta -DiasAntiguo $DiasAntiguo
+        $estadoDespues = Get-ResumenDirectorio -Ruta $ruta -DiasAntiguo $DiasAntiguo
+
+        $resultados.Add([pscustomobject]@{
+            Categoria       = if ($ruta -match 'Google\\Chrome') { 'Chrome' } elseif ($ruta -match 'Temp') { 'Temporales' } else { 'Sistema' }
+            Ruta            = $ruta
+            Existe          = $estadoAntes.Existe
+            ArchivosAntes   = $estadoAntes.Archivos
+            ArchivosDespues = $estadoDespues.Archivos
+            Eliminados      = $resultadoLimpieza.Eliminados
+            LiberadosMB     = $resultadoLimpieza.LiberadosMB
+            Fallidos        = $resultadoLimpieza.Fallidos
+            Nota            = 'Se eliminan solo archivos antiguos y cachés conocidas; no se tocan documentos ni descargas.'
+        })
+    }
+
+    Write-Etapa 'Vaciando la Papelera de Reciclaje...'
+    try {
+        Clear-RecycleBin -Force -ErrorAction Stop
+        $resultados.Add([pscustomobject]@{
+            Categoria       = 'Reciclaje'
+            Ruta            = 'Papelera de Reciclaje'
+            Existe          = $true
+            ArchivosAntes   = 0
+            ArchivosDespues = 0
+            Eliminados      = 1
+            LiberadosMB     = 0
+            Fallidos        = 0
+            Nota            = 'Se vació la papelera del usuario.'
+        })
+    }
+    catch {
+        $resultados.Add([pscustomobject]@{
+            Categoria       = 'Reciclaje'
+            Ruta            = 'Papelera de Reciclaje'
+            Existe          = $true
+            ArchivosAntes   = 0
+            ArchivosDespues = 0
+            Eliminados      = 0
+            LiberadosMB     = 0
+            Fallidos        = 1
+            Nota            = $_.Exception.Message
+        })
+    }
+
+    Write-Etapa 'Limpiando caché DNS del cliente...'
+    try {
+        Clear-DnsClientCache -ErrorAction Stop
+        $resultados.Add([pscustomobject]@{
+            Categoria       = 'DNS'
+            Ruta            = 'Cache DNS'
+            Existe          = $true
+            ArchivosAntes   = 0
+            ArchivosDespues = 0
+            Eliminados      = 1
+            LiberadosMB     = 0
+            Fallidos        = 0
+            Nota            = 'Se borró la caché DNS del sistema.'
+        })
+    }
+    catch {
+        $resultados.Add([pscustomobject]@{
+            Categoria       = 'DNS'
+            Ruta            = 'Cache DNS'
+            Existe          = $true
+            ArchivosAntes   = 0
+            ArchivosDespues = 0
+            Eliminados      = 0
+            LiberadosMB     = 0
+            Fallidos        = 1
+            Nota            = $_.Exception.Message
+        })
+    }
+
+    return $resultados.ToArray()
+}
+
 if (-not (Test-Administrador)) {
     throw 'Ejecute PowerShell como administrador para recopilar toda la evidencia.'
 }
@@ -454,50 +561,43 @@ function Write-Etapa {
 }
 
 if ($Modo -eq 'Limpieza') {
-    Write-Etapa 'Buscando archivos temporales y cachés...'
-    $rutasLimpieza = New-Object 'System.Collections.Generic.List[string]'
-    foreach ($rutaTemporal in @($env:TEMP, (Join-Path $env:windir 'Temp'))) {
-        if ($rutaTemporal -and -not $rutasLimpieza.Contains($rutaTemporal)) {
-            $rutasLimpieza.Add($rutaTemporal)
+    Write-Etapa 'Buscando archivos temporales, cachés y elementos de ruido del equipo...'
+    $resultadoLimpieza = @(Limpiar-PC-Profesional -DiasAntiguo $DiasTemporalAntiguo)
+
+    $limpiezaDetallada = @($resultadoLimpieza | Where-Object { $_.Categoria -ne 'DNS' -and $_.Categoria -ne 'Reciclaje' })
+    $estadoAntes = @($limpiezaDetallada | ForEach-Object {
+        [pscustomobject]@{
+            Categoria = $_.Categoria
+            Ruta = $_.Ruta
+            ArchivosAntes = $_.ArchivosAntes
+            ArchivosDespues = $_.ArchivosDespues
+            Eliminados = $_.Eliminados
+            LiberadosMB = $_.LiberadosMB
+            Fallidos = $_.Fallidos
+            Nota = $_.Nota
         }
-    }
+    })
 
-    $datosChromeLimpieza = Join-Path $env:LOCALAPPDATA 'Google\Chrome\User Data'
-    if (Test-Path $datosChromeLimpieza) {
-        $perfilesLimpieza = @(Get-ChildItem $datosChromeLimpieza -Directory |
-            Where-Object Name -Match '^(Default|Profile \d+)$')
-        foreach ($perfilLimpieza in $perfilesLimpieza) {
-            foreach ($subruta in @('Cache', 'Code Cache', 'GPUCache')) {
-                $rutaCache = Join-Path $perfilLimpieza.FullName $subruta
-                if (-not $rutasLimpieza.Contains($rutaCache)) {
-                    $rutasLimpieza.Add($rutaCache)
-                }
-            }
+    $resultadoLimpiezaCsv = @($resultadoLimpieza | ForEach-Object {
+        [pscustomobject]@{
+            Categoria = $_.Categoria
+            Ruta = $_.Ruta
+            Existe = $_.Existe
+            ArchivosAntes = $_.ArchivosAntes
+            ArchivosDespues = $_.ArchivosDespues
+            Eliminados = $_.Eliminados
+            LiberadosMB = $_.LiberadosMB
+            Fallidos = $_.Fallidos
+            Nota = $_.Nota
         }
-    }
-
-    $estadoAntes = @($rutasLimpieza | ForEach-Object {
-        Get-ResumenDirectorio -Ruta $_ -DiasAntiguo $DiasTemporalAntiguo
-    })
-    Write-Etapa "Eliminando archivos temporales con más de $DiasTemporalAntiguo días..."
-    $resultadoLimpieza = @($rutasLimpieza | ForEach-Object {
-        Remove-ArchivosTemporalesAntiguos -Ruta $_ -DiasAntiguo $DiasTemporalAntiguo
-    })
-    Write-Etapa 'Comprobando el espacio liberado...'
-    $estadoDespues = @($rutasLimpieza | ForEach-Object {
-        Get-ResumenDirectorio -Ruta $_ -DiasAntiguo $DiasTemporalAntiguo
     })
 
-    $estadoAntes |
-        Export-Csv (Join-Path $carpeta 'archivos-temporales-antes.csv') -NoTypeInformation -Encoding UTF8
-    $resultadoLimpieza |
+    $resultadoLimpiezaCsv |
         Export-Csv (Join-Path $carpeta 'limpieza-temporales.csv') -NoTypeInformation -Encoding UTF8
-    $estadoDespues |
-        Export-Csv (Join-Path $carpeta 'archivos-temporales-despues.csv') -NoTypeInformation -Encoding UTF8
 
-    $eliminadosTotal = ($resultadoLimpieza | Measure-Object Eliminados -Sum).Sum
-    $liberadosTotal = ($resultadoLimpieza | Measure-Object LiberadosMB -Sum).Sum
-    $fallidosTotal = ($resultadoLimpieza | Measure-Object Fallidos -Sum).Sum
+    $eliminadosTotal = ($resultadoLimpiezaCsv | Measure-Object Eliminados -Sum).Sum
+    $liberadosTotal = ($resultadoLimpiezaCsv | Measure-Object LiberadosMB -Sum).Sum
+    $fallidosTotal = ($resultadoLimpiezaCsv | Measure-Object Fallidos -Sum).Sum
     $resumenLimpieza = @([pscustomobject]@{
         Equipo       = $env:COMPUTERNAME
         Usuario      = [Security.Principal.WindowsIdentity]::GetCurrent().Name
@@ -506,6 +606,7 @@ if ($Modo -eq 'Limpieza') {
         Eliminados   = $eliminadosTotal
         LiberadosMB  = [Math]::Round($liberadosTotal, 2)
         NoEliminados = $fallidosTotal
+        Nota         = 'Se limpian temporales, cachés de Chrome, DNS y papelera; no se eliminan documentos ni descargas.'
     })
 
     $estiloLimpieza = @'
@@ -519,17 +620,16 @@ th { background: #e2e8f0; }
 </style>
 '@
     $contenidoLimpieza = @(
-        '<h1>Informe de soporte - Limpieza del equipo</h1>'
-        "<p class='nota'>Se eliminaron únicamente archivos con más de $DiasTemporalAntiguo días dentro de rutas temporales conocidas. No se eliminaron carpetas, descargas ni documentos del usuario, y no se siguieron enlaces.</p>"
+        '<h1>Informe de soporte - Limpieza profesional del equipo</h1>'
+        "<p class='nota'>Se eliminaron solo archivos antiguos y cachés concretas: temporales del sistema, caché de Chrome, cache DNS y contenido de papelera. No se tocaron documentos, descargas, aplicaciones ni archivos recientes.</p>"
         (Convertir-FragmentoHtml $resumenLimpieza 'Resultado')
-        (Convertir-FragmentoHtml $estadoAntes 'Estado antes de la limpieza')
-        (Convertir-FragmentoHtml $resultadoLimpieza 'Acciones realizadas')
-        (Convertir-FragmentoHtml $estadoDespues 'Estado después de la limpieza')
+        (Convertir-FragmentoHtml $estadoAntes 'Acciones realizadas por ruta')
+        (Convertir-FragmentoHtml $resultadoLimpiezaCsv 'Detalle completo de limpieza')
     ) -join "`r`n"
 
     $archivoInformeLimpieza = Join-Path $carpeta 'informe-de-soporte.html'
-    Write-Etapa 'Generando el informe de limpieza...'
-    ConvertTo-Html -Title 'Informe de soporte - Limpieza' -Head $estiloLimpieza `
+    Write-Etapa 'Generando el informe profesional de limpieza...'
+    ConvertTo-Html -Title 'Informe de soporte - Limpieza profesional' -Head $estiloLimpieza `
         -Body $contenidoLimpieza |
         Out-File $archivoInformeLimpieza -Encoding utf8
 
@@ -540,8 +640,8 @@ th { background: #e2e8f0; }
     $hashesLimpieza |
         Export-Csv (Join-Path $carpeta 'hashes-sha256.csv') -NoTypeInformation -Encoding UTF8
 
-    Write-Host "Limpieza finalizada. Informe: $archivoInformeLimpieza" -ForegroundColor Green
-    Write-Host "Archivos eliminados: $eliminadosTotal; espacio liberado: $([Math]::Round($liberadosTotal, 2)) MB"
+    Write-Host "Limpieza profesional finalizada. Informe: $archivoInformeLimpieza" -ForegroundColor Green
+    Write-Host "Archivos eliminados: $eliminadosTotal; espacio liberado: $([Math]::Round($liberadosTotal, 2)) MB; fallidos: $fallidosTotal"
     Finalizar-InformeYLimpiar -RutaInforme $archivoInformeLimpieza -CarpetaAuditoria $carpeta -AutoEliminar $AutoEliminarAlCerrar -AbrirReporte (-not $NoAutoAbrirReporte)
     return
 }

@@ -1,12 +1,18 @@
 ---
 name: windows-support-diagnostic
-description: Create, deploy, run, troubleshoot, and interpret the Windows 10 support diagnostic toolkit bundled with this skill. Use for integral PC diagnostics, unusual network traffic audits, safe temporary-file cleanup, Kaspersky/Chrome checks, driver and printer diagnostics, software inventory, or support report generation.
+description: Create, deploy, run, troubleshoot, and interpret the Windows 10 support diagnostic toolkit bundled with this skill. Use for integral PC diagnostics, unusual network traffic audits, safe temporary-file cleanup, Chrome/DNS/Recycle Bin maintenance, Kaspersky/Chrome checks, driver and printer diagnostics, software inventory, and professional support report generation.
 ---
 
 # Windows Support Diagnostic
 
 Use the bundled toolkit to diagnose Windows 10 workstations without silently
 changing system configuration.
+
+The toolkit is intended to behave like a professional support tool: robust,
+non-destructive, evidential, and safe by default. It collects forensic-quality
+support artifacts, identifies indicators requiring review, and supports a low-risk
+cleanup workflow for temporary files and browser cache without touching user
+personal documents or download folders.
 
 ## Bundled files
 
@@ -39,8 +45,9 @@ Select the mode that matches the request:
   reliability, software, driver, printer, domain, and network checks.
 - `Red`: timed traffic, DNS, gateway, adapter, process, and Fortinet-oriented
   evidence collection.
-- `Limpieza`: no timed network audit; safely removes only old files from known
-  temporary and Chrome cache locations.
+- `Limpieza`: safe, professional cleanup mode with temporary files, Chrome
+  cache folders, DNS cache, and Recycle Bin cleanup, while preserving user
+  documents, downloads, and recent files. No timed network audit is run.
 
 Run directly when needed:
 
@@ -65,6 +72,10 @@ Extra switches available on `Auditar-Trafico.ps1`:
   `DISM /Online /Cleanup-Image /StartComponentCleanup`, writes a short
   report, and returns immediately without running the rest of the
   diagnostic. Low-risk, performance-oriented maintenance only.
+- `-Modo Limpieza`: the professional cleanup workflow for the end user. It
+  targets temporary directories, old Chrome cache subfolders, the DNS cache,
+  and the Recycle Bin, while intentionally preserving the user profile,
+  documents, and downloads. It then exports a summary and HTML report.
 - `-AutoEliminarAlCerrar`: writes evidence to `%TEMP%` instead of
   `C:\AuditoriaRed`, opens the HTML report automatically, and deletes the
   temporary evidence folder only after the user presses a key to exit.
@@ -103,11 +114,23 @@ files newer than `DiasTemporalAntiguo`.
 The cleanup implementation must:
 
 - Enumerate specific known temporary directories.
+- Target Chrome cache folders by profile and cache subdirectory, not the whole
+  browser profile.
 - Delete files individually by literal path.
 - Reject paths outside the resolved temporary root.
 - Skip reparse points and never recursively remove a directory.
 - Count locked or inaccessible files as failures.
 - Produce before/after measurements and an action summary.
+- Keep the cleanup low risk by only removing old files and cache artifacts,
+  while preserving user documents, downloads, and recent files.
+
+Professional cleanup categories in this toolkit include:
+
+- system temp folders
+- Chrome cache and GPU/media cache
+- DNS client cache
+- Recycle Bin
+- old print-spool files when explicitly requested
 
 ## Troubleshooting
 
