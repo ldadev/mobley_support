@@ -2449,6 +2449,39 @@ else {
     "Se generaron $($indicadores.Count) indicadores que requieren revisión. Los hallazgos de red deben correlacionarse con FortiGate/FortiNAC."
 }
 
+$cantidadEventosVisor = @($eventosSistema).Count
+$cantidadFallosAplicacion = @($eventosAplicaciones).Count
+$cantidadEventosKaspersky = @($eventosKaspersky).Count
+$cantidadEventosImpresion = @($eventosImpresion).Count
+$cantidadProcesosRed = @($resumenProcesos).Count
+$cantidadProcesosConsumo = @($procesosConsumo).Count
+$cantidadServiciosDetenidos = @($serviciosAutomaticosDetenidos).Count
+$cantidadServiciosKaspersky = @($componentesKaspersky).Count
+$cantidadConexiones = $conexiones.Count
+$cantidadDestinosPublicos = @($conexiones | Where-Object DestinoPublico | Select-Object -ExpandProperty IPRemota -Unique).Count
+$cantidadPuertosEscucha = @($puertosEscucha).Count
+$cantidadErroresRed = @($errores | Where-Object Componente -Match 'red|TCP|pktmon|DNS|conectividad' ).Count
+$analisisResultados = @(
+    '<h2>Guía de análisis de resultados</h2>'
+    '<p>Lea primero esta guía y después confirme cada conclusión en la tabla o archivo indicado. Los números describen la ventana de captura; no son diagnósticos automáticos ni sustituyen la revisión del administrador.</p>'
+    '<h3>1. Visor de eventos y estabilidad</h3>'
+    "<p>Se agruparon $cantidadEventosVisor grupos de eventos críticos o de error del sistema y de Application, $cantidadFallosAplicacion fallos recientes de aplicaciones, $cantidadEventosKaspersky eventos de Kaspersky y $cantidadEventosImpresion eventos del servicio de impresión. Revise proveedor, ID, nivel, hora, cantidad y mensaje: varios eventos del mismo proveedor en el mismo intervalo son más relevantes que un evento aislado.</p>"
+    '<ul><li>Confirme el evento en el Visor de eventos con la misma hora e ID, y compruebe si coincide con un reinicio, caída de red, instalación o ejecución de una aplicación.</li><li>Priorice errores repetidos, nuevos o coincidentes con síntomas del usuario. Un evento crítico aislado puede ser transitorio; la repetición y la correlación temporal aumentan su importancia.</li><li>Use <code>errores-eventos-sistema.csv</code>, <code>fallos-aplicaciones.csv</code>, <code>eventos-controladores.csv</code>, <code>eventos-impresion.csv</code>, <code>eventos-kaspersky.csv</code>, <code>historial-confiabilidad.csv</code> y <code>amenazas-defender.csv</code> como evidencia.</li></ul>'
+    '<h3>2. Procesos y aplicaciones</h3>'
+    "<p>Se registraron $cantidadProcesosConsumo procesos con mayor consumo de memoria y $cantidadProcesosRed procesos asociados a conexiones de red. Compare nombre, PID, memoria, CPU, destinos, puertos y duración entre muestras; el consumo alto por sí solo no implica malware.</p>"
+    '<ul><li>Investigue primero un proceso desconocido, sin fabricante o ejecutado desde una ruta inusual, especialmente si mantiene conexiones públicas persistentes.</li><li>En la tabla "Resumen de conexiones por proceso" y <code>conexiones.csv</code>, compruebe <code>DestinosPublicosUnicos</code>, <code>MaximoConcurrentes</code>, <code>PuertosRemotosUnicos</code>, <code>Estado</code> y <code>PID</code>. Relacione el PID con el proceso activo y su ruta antes de escalar.</li><li>Contraste <code>procesos-mayor-consumo.csv</code>, <code>programas-inicio.csv</code>, <code>tareas-programadas-no-microsoft.csv</code>, <code>conexiones-chrome-resumen.csv</code> y las extensiones de Chrome. Navegadores, antivirus, actualizadores y sincronizadores pueden generar actividad legítima.</li></ul>'
+    '<h3>3. Servicios</h3>'
+    "<p>Se encontraron $cantidadServiciosDetenidos servicios configurados para iniciar automáticamente pero detenidos y $cantidadServiciosKaspersky servicios relacionados con Kaspersky. Revise también el estado del Spooler, los productos antivirus y los controles de seguridad.</p>"
+    '<ul><li>Un servicio automático detenido puede explicar una falla funcional, pero también puede indicar una dependencia rota o una política. Confirme <code>Name</code>, <code>DisplayName</code>, <code>State</code>, <code>StartMode</code>, <code>ExitCode</code> y <code>PathName</code>.</li><li>Un servicio desconocido, con ruta temporal, firma ausente o cambio reciente requiere revisión de firma digital, fabricante, evento asociado y hash, no eliminación inmediata.</li><li>Use <code>servicios-automaticos-detenidos.csv</code>, <code>servicios-kaspersky.csv</code>, <code>productos-antivirus.csv</code>, <code>servicioImpresion</code> en el informe y <code>controles-seguridad.csv</code>.</li></ul>'
+    '<h3>4. Red: IP, MAC, DNS y tráfico</h3>'
+    "<p>La captura contiene $cantidadConexiones observaciones TCP, $cantidadDestinosPublicos destinos públicos únicos, $cantidadPuertosEscucha puertos locales en escucha y $cantidadErroresRed errores o limitaciones de red registrados. Empiece por identificar la interfaz y su IP/MAC, después la puerta de enlace y DNS, y finalmente las conexiones del proceso.</p>"
+    '<ul><li>En <code>ipconfig.txt</code> y <code>configuracion-red.txt</code> confirme IPv4/IPv6, máscara, puerta de enlace, servidores DNS y estado de cada interfaz. En <code>adaptadores-red.csv</code> confirme nombre, MAC, velocidad, estado y controlador.</li><li>En <code>cache-dns.csv</code> revise nombres consultados, tipo, estado, TTL y dirección. Un dominio desconocido debe compararse con el proceso, la hora, el DNS institucional y la reputación corporativa; una entrada DNS sola no demuestra comunicación exitosa.</li><li>En <code>arp.txt</code> relacione IP y MAC de la red local. Una MAC nueva o duplicada debe validarse con el inventario de red y DHCP, porque también puede deberse a Wi-Fi, virtualización o cambios legítimos.</li><li>En <code>conexiones.csv</code>, <code>resumen-conexiones-por-proceso</code> y <code>puertos-en-escucha.csv</code> busque persistencia, puertos inesperados, muchos destinos, <code>SYN-SENT</code> repetido o servicios escuchando sin propietario conocido. Correlacione fecha, IP, MAC, puerto, protocolo y regla con FortiGate/FortiNAC.</li><li>Use <code>estadisticas-red.csv</code>, <code>pruebas-red.csv</code> y <code>captura.pcapng</code> o <code>captura.etl</code> cuando existan para separar pérdida, latencia o errores de conectividad de una actividad realmente sospechosa.</li></ul>'
+    '<h3>5. Secuencia recomendada</h3>'
+    '<ol><li>Defina el intervalo y el síntoma: qué ocurrió, a qué hora y qué usuario o aplicación lo reportó.</li><li>Lea primero los indicadores y errores de recopilación; después siga el PID/proceso, el servicio y el destino.</li><li>Valide nombres, IP, MAC, DNS, puerto, firma y autorización contra inventarios y registros institucionales.</li><li>Documente la evidencia original y escale solo después de la correlación. No borre servicios, procesos ni conexiones basándose en una sola fila.</li></ol>'
+    "<p class='nota'><strong>Limitación:</strong> la auditoría observa una ventana temporal y conexiones visibles en el equipo. El cifrado impide ver el contenido, NAT/VPN puede ocultar el origen y las aplicaciones legítimas pueden usar CDN o muchos destinos. "
+    'Un resultado “Revisar” significa que hay que investigar, no que se haya confirmado malware o exfiltración.</p>'
+) -join "`r`n"
+
 $estilo = @'
 <style>
 body { font-family: Segoe UI, Arial, sans-serif; margin: 32px; color: #1f2937; }
@@ -2464,6 +2497,7 @@ th { background: #e2e8f0; }
 $contenido = @(
     '<h1>Informe de soporte</h1>'
     "<p class='conclusion'><strong>Resultado:</strong> $conclusion</p>"
+    $analisisResultados
     "<p class='nota'><strong>Alcance:</strong> los indicadores se basan en conexiones visibles desde el equipo y no constituyen por sí solos una confirmación de incidente. Deben correlacionarse por fecha, IP, MAC, puerto y aplicación con los registros institucionales de Fortinet.</p>"
     "<p class='nota'><strong>Chrome:</strong> las extensiones corresponden al perfil de Windows que ejecutó el script. Una cantidad alta de conexiones de Chrome puede ser normal por pestañas, extensiones y redes CDN; debe contrastarse con los destinos y eventos del firewall.</p>"
     '<h2>Cómo usar los datos para identificar tráfico anómalo</h2>'
