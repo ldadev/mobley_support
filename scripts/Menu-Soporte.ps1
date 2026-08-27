@@ -58,6 +58,7 @@ $opciones = [ordered]@{
     '7' = @{ Icon = '[U]'; Label = 'Actualizar Windows'; Desc = '(Busca, instala y puede reiniciar el equipo)'; Params = @{ ActualizarWindows = $true; AutoEliminarAlCerrar = $true } }
     '8' = @{ Icon = '[D]'; Label = 'Desfragmentar Discos'; Desc = '(Optimiza las unidades fijas detectadas)'; Params = @{ DesfragmentarDiscos = $true; AutoEliminarAlCerrar = $true } }
     '9' = @{ Icon = '[L]'; Label = 'Licencias'; Desc = '(Consulta activacion oficial de Windows y Microsoft)'; Params = @{ MostrarLicencias = $true; AutoEliminarAlCerrar = $true } }
+    '10' = @{ Icon = '[B]'; Label = 'Comparar Auditoria'; Desc = '(Compara red, puertos, servicios y DNS con otra auditoria)'; Params = $null }
 }
 
 while ($true) {
@@ -101,6 +102,31 @@ while ($true) {
 
     if ($opciones.Contains($opc)) {
         $sel = $opciones[$opc]
+
+        if ($opc -eq '10') {
+            $carpetaSalida = 'C:\AuditoriaRed'
+            $auditorias = @(Get-ChildItem -LiteralPath $carpetaSalida -Directory -Filter 'Auditoria-*' -ErrorAction SilentlyContinue |
+                Sort-Object LastWriteTime -Descending)
+            if ($auditorias.Count -eq 0) {
+                Write-Warn 'No hay auditorias anteriores disponibles en C:\AuditoriaRed.'
+                Write-Pausar
+                continue
+            }
+            Write-Host ''
+            Write-Info 'Seleccione la auditoria anterior:'
+            for ($indiceAuditoria = 0; $indiceAuditoria -lt $auditorias.Count; $indiceAuditoria++) {
+                Write-Host ('  {0}. {1} ({2})' -f ($indiceAuditoria + 1), $auditorias[$indiceAuditoria].Name, $auditorias[$indiceAuditoria].LastWriteTime)
+            }
+            $seleccionAuditoria = 0
+            if (-not [int]::TryParse((Read-Host 'Numero de auditoria'), [ref]$seleccionAuditoria) -or
+                $seleccionAuditoria -lt 1 -or $seleccionAuditoria -gt $auditorias.Count) {
+                Write-Warn 'Seleccion no valida.'
+                Write-Pausar
+                continue
+            }
+            $sel.Params = @{ Modo = 'Red'; AuditoriaAnterior = $auditorias[$seleccionAuditoria - 1].FullName; AutoEliminarAlCerrar = $true }
+        }
+
         Write-Host ''
         Write-Linea -c '.' -col DarkCyan
         Write-Info ('Va a ejecutar: {0}' -f $sel.Label)
@@ -132,7 +158,7 @@ while ($true) {
     }
     else {
         Write-Host ''
-        Write-Warn ('"{0}" no es una opcion valida. Ingrese un numero del 1 al 9, o 0 para salir.' -f $opc)
+        Write-Warn ('"{0}" no es una opcion valida. Ingrese un numero del 1 al 10, o 0 para salir.' -f $opc)
         Write-Pausar
     }
 }

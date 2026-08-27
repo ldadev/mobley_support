@@ -111,6 +111,12 @@ The package contains the HTML report, CSV files, logs, and SHA-256 manifest.
 When `-AutoEliminarAlCerrar` is used, the evidence folder is removed after
 exit but the ZIP remains available in the output directory.
 
+Each run also writes `ejecucion.log` with start time, active stages, selected
+baseline, errors, and package status. When no `-AuditoriaAnterior` is supplied
+for a persistent output directory, the most recent previous audit is selected
+automatically. The menu option 10 allows the technician to choose a specific
+previous audit manually.
+
 ## Required behavior
 
 1. Require Windows PowerShell 5.1 and administrator privileges.

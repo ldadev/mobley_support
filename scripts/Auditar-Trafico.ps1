@@ -579,6 +579,7 @@ $pktmonActivo = $false
 $archivoEtl = Join-Path $carpeta 'captura.etl'
 $archivoPcapng = Join-Path $carpeta 'captura.pcapng'
 $archivoPaqueteEvidencias = Join-Path $DirectorioSalida "Auditoria-$env:COMPUTERNAME-$marca.zip"
+$archivoEjecucionLog = Join-Path $carpeta 'ejecucion.log'
 $resultadoLimpiezaSpooler = $null
 $serviciosSistema = @()
 $reglasFirewall = @()
@@ -602,6 +603,10 @@ function Registrar-ErrorAuditoria {
         Componente = $Componente
         Mensaje    = $Mensaje
     })
+    try {
+        Add-Content -LiteralPath $archivoEjecucionLog -Value ("[{0}] ERROR [{1}] {2}" -f (Get-Date).ToString('s'), $Componente, $Mensaje) -Encoding UTF8
+    }
+    catch {}
 }
 
 function Write-Linea {
@@ -645,6 +650,10 @@ function Write-Etapa {
     param([Parameter(Mandatory)][string]$Mensaje)
     Write-Host "  i  [$((Get-Date).ToString('HH:mm:ss'))] " -NoNewline -ForegroundColor Cyan
     Write-Host $Mensaje -ForegroundColor White
+    try {
+        Add-Content -LiteralPath $archivoEjecucionLog -Value ("[{0}] ETAPA {1}" -f (Get-Date).ToString('s'), $Mensaje) -Encoding UTF8
+    }
+    catch {}
 }
 
 function Guardar-InformeAccion {
@@ -681,6 +690,10 @@ th { background: #e2e8f0; }
         Select-Object Path, Algorithm, Hash)
     $hashesAccion | Export-Csv (Join-Path $carpeta 'hashes-sha256.csv') -NoTypeInformation -Encoding UTF8
     try {
+        Add-Content -LiteralPath $archivoEjecucionLog -Value ("[{0}] FIN Paquete={1}" -f (Get-Date).ToString('s'), $archivoPaqueteEvidencias) -Encoding UTF8
+    }
+    catch {}
+    try {
         Compress-Archive -Path (Join-Path $carpeta '*') -DestinationPath $archivoPaqueteEvidencias -Force
         Write-Host "Paquete de evidencias generado: $archivoPaqueteEvidencias" -ForegroundColor Green
     }
@@ -689,6 +702,23 @@ th { background: #e2e8f0; }
     }
     Write-Host "Informe generado: $archivoInformeAccion" -ForegroundColor Green
     Finalizar-InformeYLimpiar -RutaInforme $archivoInformeAccion -CarpetaAuditoria $carpeta -AutoEliminar $AutoEliminarAlCerrar -AbrirReporte (-not $NoAutoAbrirReporte)
+}
+
+try {
+    Add-Content -LiteralPath $archivoEjecucionLog -Value ("[{0}] INICIO Modo={1} Equipo={2}" -f (Get-Date).ToString('s'), $Modo, $env:COMPUTERNAME) -Encoding UTF8
+}
+catch {}
+if ([string]::IsNullOrWhiteSpace($AuditoriaAnterior) -and -not $AutoEliminarAlCerrar) {
+    $AuditoriaAnterior = Get-ChildItem -LiteralPath $DirectorioSalida -Directory -Filter "Auditoria-$env:COMPUTERNAME-*" -ErrorAction SilentlyContinue |
+        Where-Object FullName -ne $carpeta |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 1 -ExpandProperty FullName
+    if ($AuditoriaAnterior) {
+        try {
+            Add-Content -LiteralPath $archivoEjecucionLog -Value ("[{0}] LINEA_BASE {1}" -f (Get-Date).ToString('s'), $AuditoriaAnterior) -Encoding UTF8
+        }
+        catch {}
+    }
 }
 
 if ($Modo -eq 'Limpieza') {
@@ -954,6 +984,7 @@ try {
         $numeroMuestra++
         $fechaMuestra = Get-Date
         $procesos = @{}
+        Write-Etapa "Capturando muestra de red y rendimiento #$numeroMuestra..."
 
         Get-Process -ErrorAction SilentlyContinue | ForEach-Object {
             $procesos[[int]$_.Id] = $_.ProcessName
@@ -2857,7 +2888,7 @@ $contenido = @(
     (Convertir-FragmentoHtml @($amenazas) 'Detecciones de Microsoft Defender' 'No se encontraron detecciones de Defender dentro del periodo auditado.')
     (Convertir-FragmentoHtml ($errores.ToArray()) 'Limitaciones y errores de recopilación' 'No se registraron errores de recopilación.')
     '<h2>Evidencias</h2>'
-    '<p>La carpeta contiene conexiones.csv, estadísticas de interfaces, caché DNS, configuración de red y, cuando Windows lo permite, captura ETL/PCAPNG. El archivo hashes-sha256.csv permite comprobar su integridad.</p>'
+    "<p>La carpeta contiene conexiones TCP/UDP, estadísticas de interfaces, caché y servidores DNS, configuración IP/ARP, procesos, servicios, reglas de firewall y, cuando Windows lo permite, captura ETL/PCAPNG. También contiene <code>ejecucion.log</code> y $archivoPaqueteEvidencias. El archivo hashes-sha256.csv permite comprobar la integridad de las evidencias internas.</p>"
 ) -join "`r`n"
 
 $archivoInforme = Join-Path $carpeta 'informe-de-soporte.html'
@@ -2872,6 +2903,7 @@ $hashes = @(Get-ChildItem $carpeta -File |
     Get-FileHash -Algorithm SHA256 |
     Select-Object Path, Algorithm, Hash)
 $hashes | Export-Csv (Join-Path $carpeta 'hashes-sha256.csv') -NoTypeInformation -Encoding UTF8
+Add-Content -LiteralPath $archivoEjecucionLog -Value ("[{0}] FIN Paquete={1}" -f (Get-Date).ToString('s'), $archivoPaqueteEvidencias) -Encoding UTF8
 try {
     Compress-Archive -Path (Join-Path $carpeta '*') -DestinationPath $archivoPaqueteEvidencias -Force
     Write-Host "Paquete de evidencias generado: $archivoPaqueteEvidencias" -ForegroundColor Green
