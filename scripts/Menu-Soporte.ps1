@@ -214,8 +214,16 @@ while ($true) {
         catch {
             Write-Host ''
             Write-ErrorMsg ('Error al ejecutar: {0}' -f $_.Exception.Message)
+            if ($_.Exception.InnerException) {
+                Write-Host ('  Detalle interno: {0}' -f $_.Exception.InnerException.Message) -ForegroundColor Yellow
+            }
             if ($_.InvocationInfo.ScriptLineNumber) {
+                $archivoError = if ($_.InvocationInfo.ScriptName) { $_.InvocationInfo.ScriptName } else { $script }
+                Write-Host ('  Archivo: {0}' -f $archivoError) -ForegroundColor Yellow
                 Write-Host ('  Línea: {0} | Comando: {1}' -f $_.InvocationInfo.ScriptLineNumber, $_.InvocationInfo.Line.Trim()) -ForegroundColor Yellow
+            }
+            if ($_.ScriptStackTrace) {
+                Write-Host ('  Pila: {0}' -f $_.ScriptStackTrace) -ForegroundColor DarkYellow
             }
         }
 
