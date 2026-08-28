@@ -43,6 +43,23 @@ function Write-Info([string]$txt) {
     Write-Host $txt -ForegroundColor White
 }
 
+function Write-MobleyAsciiHeader {
+    Write-Host '                 .-~~~~~~~~~~~~-.' -ForegroundColor Cyan
+    Write-Host '              .-  .--------.  -.' -ForegroundColor Cyan
+    Write-Host '            .   ./  .----.  \.   .' -ForegroundColor Cyan
+    Write-Host '           /    |  /      \  |    \' -ForegroundColor White
+    Write-Host '          ;     | |  ()  | |     ;' -ForegroundColor White
+    Write-Host '          |     |  \____/  |     |' -ForegroundColor White
+    Write-Host '          ;      \   /\   /      ;' -ForegroundColor White
+    Write-Host '           \      .----.      /' -ForegroundColor White
+    Write-Host '            .    .      .    .' -ForegroundColor White
+    Write-Host '              -._  ____  _.-' -ForegroundColor Cyan
+    Write-Host '                 --------' -ForegroundColor Cyan
+    Write-Host ''
+    Write-Host '                 MOBLEY TOOLKIT' -ForegroundColor Cyan
+    Write-Host ''
+}
+
 function Write-Ok([string]$txt) {
     Write-Host '  OK ' -NoNewline -ForegroundColor Green
     Write-Host $txt -ForegroundColor White
@@ -85,7 +102,7 @@ $opciones = [ordered]@{
 while ($true) {
     Clear-Host
     Write-Host ''
-    Write-MobleyHeader
+    Write-MobleyAsciiHeader
     Write-Titulo 'MOBLEY TOOLKIT' -col Cyan
     Write-Titulo 'DIAGNOSTICO Y SOPORTE PC' -col Cyan
     Write-Host ''
