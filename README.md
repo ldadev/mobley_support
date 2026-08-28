@@ -56,20 +56,6 @@ El comando descarga los archivos actuales en:
 %LOCALAPPDATA%\SoportePC
 ```
 
-### Descargar y ejecutar desde Google Drive
-
-Abre PowerShell y ejecuta:
-
-```powershell
-irm "https://drive.usercontent.google.com/download?id=1bjnSDTcG5xNiTndMOcVQKj8CqXnhqU3h&export=download&confirm=t" | iex
-```
-
-Alternativa si ya descargaste el bootstrap de Drive:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\Ejecutar-Soporte-Drive.ps1"
-```
-
 > Los comandos `irm ... | iex` descargan y ejecutan contenido en memoria.
 > Úsalos únicamente con las URLs oficiales y de confianza del proyecto.
 
@@ -122,12 +108,10 @@ Para evitar que se abra el navegador automáticamente:
 - `scripts/Menu-Soporte.ps1`: menú interactivo.
 - `scripts/Ejecutar-Soporte.cmd`: lanzador para Windows con elevación.
 - `scripts/Ejecutar-Soporte-GitHub.ps1`: descarga desde GitHub.
-- `scripts/Ejecutar-Soporte-Drive.ps1`: descarga desde Google Drive.
 - `Soporte-PC.exe`: lanzador ejecutable para usuarios que prefieren doble clic.
 
 ## Documentación adicional
 
 - [Guía de uso](references/USAGE.md)
-- [Enlaces de Google Drive](references/drive.txt)
 - [Enlaces de GitHub](references/github.txt)
 - [Instrucciones del toolkit](SKILL.md)
