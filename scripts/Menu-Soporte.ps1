@@ -18,14 +18,21 @@ function Write-Titulo([string]$txt, [string]$col = 'Cyan') {
 }
 
 function Write-MobleyHeader {
-    Write-Host '                         .-""""-.' -ForegroundColor Cyan
-    Write-Host '                       .''  .--.  ''.' -ForegroundColor Cyan
-    Write-Host '                      /   /    \   \' -ForegroundColor Cyan
-    Write-Host '                     |   |  ()  |   |' -ForegroundColor White
-    Write-Host '                     |   | .--. |   |' -ForegroundColor White
-    Write-Host '                      \   \____/   /' -ForegroundColor White
-    Write-Host '                       ''.        .''' -ForegroundColor White
-    Write-Host '                         ''-.__.-''' -ForegroundColor Cyan
+    Write-Host '        ⠀⠀⠀⠀⠀⠀⠀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⠀⠀⠀⠀⠀⠀' -ForegroundColor Cyan
+    Write-Host '    ⠀⠀⠀⠀⠀⢠⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀' -ForegroundColor Cyan
+    Write-Host '    ⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀' -ForegroundColor Cyan
+    Write-Host '    ⠀⠀⠀⠀⠀⢸⡿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⢿⣧⠀⠀⠀⠀⠀' -ForegroundColor Cyan
+    Write-Host '    ⢀⣀⣀⣀⣀⣸⣇⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣸⣿⣀⣀⣀⣀⠀' -ForegroundColor White
+    Write-Host '    ⠸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠇' -ForegroundColor White
+    Write-Host '    ⠀⠀⠀⠉⢙⣿⡿⠿⠿⠿⠿⠿⢿⣿⣿⣿⠿⠿⠿⠿⠿⢿⣿⣛⠉⠁⠀⠀' -ForegroundColor White
+    Write-Host '    ⠀⠀⠀⣰⡟⠉⢰ⶶⶶⶶⶶⶶⶶ⡶⢶ⶶⶶⶶⶶⶶⶶⶶ⡆⠉⠻⣧⠀⠀⠀' -ForegroundColor White
+    Write-Host '    ⠀⠀⠀⢻⣧⡀⠈⣿⣿⣿⣿⣿⡿⠁⠈⢿⣿⣿⣿⣿⣿⠁⠀⣠⡿⠀⠀⠀' -ForegroundColor White
+    Write-Host '    ⠀⠀⠀⠀⠙⣿⡆⠈⠉⠉⠉⠉⠀⠀⠀⠀⠉⠉⠉⠉⠁⢰⣿⠋⠀⠀⠀⠀' -ForegroundColor White
+    Write-Host '    ⠀⠀⠀⠀⠀⣿⡇⠀⠀⠀⣠ⶶⶶⶶⶶⶶⶶ⣄⠀⠀⠀⢸⣿⠀⠀⠀⠀⠀' -ForegroundColor White
+    Write-Host '    ⠀⠀⠀⠀⠀⠸⣷⡀⠀⠀⣿⛛⠉⠉⠉⠉⛛⣿⠀⠀⢀⾾⠇⠀⠀⠠⠀⠀' -ForegroundColor White
+    Write-Host '    ⠀⠀⠀⠀⠀⠀⠘⢿⣦⡀⣿⣄⠀⾾⣷⠀⣠⣿⣀⣴⡟⠁⠀⠀⠀⠀⠀⠀' -ForegroundColor White
+    Write-Host '    ⠀⠀⠀⠀⠀⠀⠀⠀⠙⠻⣿⣿⣿⣿⣿⣿⣿⣿⠟⠁⠀⠀⠀⠀⠀⠀⠀⠀' -ForegroundColor Cyan
+    Write-Host '    ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠙⛛⛛⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀' -ForegroundColor Cyan
     Write-Host ''
     Write-Host '  __  __  ____  ____  _____  _______   __  _______  ____  ____' -ForegroundColor Cyan
     Write-Host ' |  \/  |/ __ \|  _ \| ____| |__   __| |  \/  | ____|/ ___||  _ \' -ForegroundColor Cyan
