@@ -2417,9 +2417,22 @@ if ($Modo -eq 'Completo') {
 }
 
 $resumenRendimiento = @()
-if ($rendimiento.Count -gt 0) {
-    $cpu = $rendimiento | Measure-Object CpuPorcentaje -Average -Maximum
-    $memoria = $rendimiento | Measure-Object MemoriaUsadaPct -Average -Maximum
+try {
+    $valoresCpu = @($rendimiento | ForEach-Object {
+        $valor = 0.0
+        if ([double]::TryParse([string]$_.CpuPorcentaje, [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$valor)) {
+            $valor
+        }
+    })
+    $valoresMemoria = @($rendimiento | ForEach-Object {
+        $valor = 0.0
+        if ([double]::TryParse([string]$_.MemoriaUsadaPct, [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$valor)) {
+            $valor
+        }
+    })
+    if ($valoresCpu.Count -gt 0 -and $valoresMemoria.Count -gt 0) {
+        $cpu = $valoresCpu | Measure-Object -Average -Maximum
+        $memoria = $valoresMemoria | Measure-Object -Average -Maximum
     $resumenRendimiento = @([pscustomobject]@{
         CpuPromedioPct     = [Math]::Round($cpu.Average, 2)
         CpuMaximoPct       = [Math]::Round($cpu.Maximum, 2)
@@ -2439,6 +2452,10 @@ if ($rendimiento.Count -gt 0) {
         Resultado = if ($memoria.Average -lt 90) { 'Cumple' } else { 'Revisar' }
         Detalle   = "Promedio=$([Math]::Round($memoria.Average, 2))%; máximo=$([Math]::Round($memoria.Maximum, 2))%."
     })
+    }
+}
+catch {
+    Registrar-ErrorAuditoria 'Resumen de rendimiento' $_.Exception.Message
 }
 
 if ($volcadosSistema.Count -gt 0) {
