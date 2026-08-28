@@ -37,10 +37,10 @@ function Write-MobleyHeader {
         @{ Texto = '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠙⠛⠛⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀'; Color = 'Cyan' }
     )
 
+    $anchoLogo = ($lineasLogo | ForEach-Object { $_.Texto.Length } | Measure-Object -Maximum).Maximum
+    $margenIzquierdo = [Math]::Max(0, [Math]::Floor(($anchoConsola - $anchoLogo) / 2))
     foreach ($lineaLogo in $lineasLogo) {
-        $texto = $lineaLogo.Texto.Trim()
-        $espacios = [Math]::Max(0, [Math]::Floor(($anchoConsola - $texto.Length) / 2))
-        Write-Host ((' ' * $espacios) + $texto) -ForegroundColor $lineaLogo.Color
+        Write-Host ((' ' * $margenIzquierdo) + $lineaLogo.Texto) -ForegroundColor $lineaLogo.Color
     }
     Write-Host ''
     Write-Titulo 'MOBLEY TOOLKIT' -col Cyan
