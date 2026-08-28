@@ -2152,18 +2152,23 @@ catch {
 }
 
 $volcadosSistema = @()
-foreach ($rutaVolcados in @(
-    (Join-Path $env:windir 'Minidump'),
-    (Join-Path $env:LOCALAPPDATA 'CrashDumps')
-)) {
-    if (Test-Path $rutaVolcados) {
-        $volcadosSistema += @(Get-ChildItem $rutaVolcados -File -ErrorAction SilentlyContinue |
-            Where-Object LastWriteTime -ge $inicioEventos |
-            Select-Object Name, Length, LastWriteTime, FullName)
+try {
+    foreach ($rutaVolcados in @(
+        (Join-Path $env:windir 'Minidump'),
+        (Join-Path $env:LOCALAPPDATA 'CrashDumps')
+    )) {
+        if (Test-Path -LiteralPath $rutaVolcados -PathType Container) {
+            $volcadosSistema += @(Get-ChildItem -LiteralPath $rutaVolcados -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.LastWriteTime -ge $inicioEventos } |
+                Select-Object Name, Length, LastWriteTime, FullName)
+        }
     }
+    $volcadosSistema |
+        Export-Csv (Join-Path $carpeta 'volcados-fallos.csv') -NoTypeInformation -Encoding UTF8
 }
-$volcadosSistema |
-    Export-Csv (Join-Path $carpeta 'volcados-fallos.csv') -NoTypeInformation -Encoding UTF8
+catch {
+    Registrar-ErrorAuditoria 'Volcados de fallos recientes' $_.Exception.Message
+}
 
 $eventosAplicaciones = @()
 try {

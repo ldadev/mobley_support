@@ -214,6 +214,9 @@ while ($true) {
         catch {
             Write-Host ''
             Write-ErrorMsg ('Error al ejecutar: {0}' -f $_.Exception.Message)
+            if ($_.InvocationInfo.ScriptLineNumber) {
+                Write-Host ('  Línea: {0} | Comando: {1}' -f $_.InvocationInfo.ScriptLineNumber, $_.InvocationInfo.Line.Trim()) -ForegroundColor Yellow
+            }
         }
 
         Write-Pausar
