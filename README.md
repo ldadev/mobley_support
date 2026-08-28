@@ -81,6 +81,10 @@ El comando descarga los archivos actuales en:
 %LOCALAPPDATA%\SoportePC
 ```
 
+Al salir del menú descargado, la carpeta temporal `SoportePC` se elimina
+automáticamente. La ejecución local desde el repositorio no elimina sus propios
+archivos.
+
 > Los comandos `irm ... | iex` descargan y ejecutan contenido en memoria.
 > Úsalos únicamente con las URLs oficiales y de confianza del proyecto.
 

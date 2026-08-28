@@ -67,6 +67,25 @@ function Write-Pausar {
     [void](Read-Host)
 }
 
+function Start-CleanupDownloadedToolkit {
+    $directorioToolkit = Split-Path -Parent $PSCommandPath
+    $directorioDescargado = Join-Path $env:LOCALAPPDATA 'SoportePC'
+    if ($directorioToolkit.TrimEnd('\') -ine $directorioDescargado.TrimEnd('\')) {
+        return
+    }
+
+    $rutaLiteral = $directorioToolkit.Replace("'", "''")
+    $comandoLimpieza = "Start-Sleep -Seconds 2; Remove-Item -LiteralPath '$rutaLiteral' -Recurse -Force -ErrorAction SilentlyContinue"
+    Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -ArgumentList @(
+        '-NoLogo',
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        $comandoLimpieza
+    ) | Out-Null
+}
+
 $opciones = [ordered]@{
     '1' = @{ Icon = '[R]'; Label = 'Diagnostico Rapido'; Desc = '(5 min - Estado general, red basica y hardware)'; Params = @{ Modo = 'Rapido'; AutoEliminarAlCerrar = $true } }
     '2' = @{ Icon = '[C]'; Label = 'Diagnostico Completo'; Desc = '(Extenso - SMART, parches, DISM/SFC, eventos)'; Params = @{ Modo = 'Completo'; IncluirVerificacionSistema = $true; AutoEliminarAlCerrar = $true } }
@@ -117,6 +136,7 @@ while ($true) {
     if ($opc -eq '0' -or $opc.ToLower() -eq 'q') {
         Write-Host ''
         Write-Info 'Cerrando sesion de soporte... Hasta luego.'
+        Start-CleanupDownloadedToolkit
         Start-Sleep -Seconds 1
         break
     }
