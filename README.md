@@ -1,6 +1,6 @@
-# Windows Support Diagnostic
+# Mobley Toolkit
 
-Toolkit de diagnóstico y soporte para equipos con Windows 10/11. Reúne
+Toolkit Mobley de diagnóstico y soporte para equipos con Windows 10/11. Reúne
 información de red, procesos, servicios, hardware, eventos y almacenamiento,
 y genera un informe HTML con evidencias complementarias.
 

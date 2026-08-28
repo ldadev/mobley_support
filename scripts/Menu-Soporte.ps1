@@ -17,6 +17,16 @@ function Write-Titulo([string]$txt, [string]$col = 'Cyan') {
     Write-Linea -c '-' -col $col
 }
 
+function Write-MobleyHeader {
+    Write-Host '  __  __  ____  ____  _____  _______   __  _______  ____  ____' -ForegroundColor Cyan
+    Write-Host ' |  \/  |/ __ \|  _ \| ____| |__   __| |  \/  | ____|/ ___||  _ \' -ForegroundColor Cyan
+    Write-Host ' | |\/| | |  | | |_) | |__      | |    | |\/| |  _|  \___ \| | | |' -ForegroundColor White
+    Write-Host ' | |  | | |__| |  _ <|___ \     | |    | |  | | |___  ___) | |_| |' -ForegroundColor White
+    Write-Host ' |_|  |_|\____/|_| \_\_____|    |_|    |_|  |_|_____| |____/|____/' -ForegroundColor White
+    Write-Host '                         T O O L K I T' -ForegroundColor Cyan
+    Write-Host ''
+}
+
 function Write-Info([string]$txt) {
     Write-Host '  i  ' -NoNewline -ForegroundColor Cyan
     Write-Host $txt -ForegroundColor White
@@ -64,7 +74,8 @@ $opciones = [ordered]@{
 while ($true) {
     Clear-Host
     Write-Host ''
-    Write-Titulo 'SISTEMA DE DIAGNOSTICO Y SOPORTE PC' -col Cyan
+    Write-MobleyHeader
+    Write-Titulo 'MOBLEY TOOLKIT - DIAGNOSTICO Y SOPORTE PC' -col Cyan
     Write-Host ''
 
     $colNum = 'Cyan'
