@@ -30,11 +30,6 @@ function Write-MobleyHeader {
     Write-Host '              -._  ____  _.-' -ForegroundColor Cyan
     Write-Host '                 --------' -ForegroundColor Cyan
     Write-Host ''
-    Write-Host '  __  __  ____  ____  _____  _______   __  _______  ____  ____' -ForegroundColor Cyan
-    Write-Host ' |  \/  |/ __ \|  _ \| ____| |__   __| |  \/  | ____|/ ___||  _ \' -ForegroundColor Cyan
-    Write-Host ' | |\/| | |  | | |_) | |__      | |    | |\/| |  _|  \___ \| | | |' -ForegroundColor White
-    Write-Host ' | |  | | |__| |  _ <|___ \     | |    | |  | | |___  ___) | |_| |' -ForegroundColor White
-    Write-Host ' |_|  |_|\____/|_| \_\_____|    |_|    |_|  |_|_____| |____/|____/' -ForegroundColor White
     Write-Host '                         MOBLEY TOOLKIT' -ForegroundColor Cyan
     Write-Host ''
 }
