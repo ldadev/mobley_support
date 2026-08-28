@@ -21,6 +21,8 @@ personal documents or download folders.
   menu (icons, confirm prompts, colored status markers, update, disk
   optimization, and official license-status actions).
 - `scripts/Ejecutar-Soporte-GitHub.ps1`: GitHub downloader and launcher.
+- `office/`: Office Deployment Tool and 64-bit Spanish installation configuration.
+- `Comandos_Paso_a_Paso_Reparacion_Arranque_UEFI.pdf`: step-by-step Windows UEFI boot repair guide.
 - `scripts/launcher.c`: C source for `Soporte-PC.exe`, a native Windows binary
   that runs the GitHub bootstrap command without opening PowerShell manually.
 - `Soporte-PC.exe`: compiled double-clickable launcher (repo root).

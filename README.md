@@ -146,6 +146,31 @@ Para evitar que se abra el navegador automáticamente:
 - `scripts/Ejecutar-Soporte-GitHub.ps1`: descarga desde GitHub.
 - `Soporte-PC.exe`: lanzador ejecutable para usuarios que prefieren doble clic.
 
+## Recursos adicionales
+
+### Instalador de Office
+
+El directorio `office/` contiene el Office Deployment Tool y la configuración
+actual para instalar Office de 64 bits en español. La configuración incluida
+usa el producto `ProPlus2024Volume` y el canal `PerpetualVL2024`; la licencia
+debe corresponder al equipo y a la organización.
+
+Abre PowerShell como administrador, entra en la carpeta `office` y ejecuta:
+
+```powershell
+.\setup.exe /configure .\configuration-Office-x64.xml
+```
+
+También puedes consultar el comando guardado en
+`office/Comando para ejecutar desde powershell.txt`.
+
+### Reparación de arranque UEFI
+
+La guía [Comandos paso a paso para reparación de arranque UEFI](Comandos_Paso_a_Paso_Reparacion_Arranque_UEFI.pdf)
+contiene el procedimiento de recuperación del arranque de Windows mediante
+WinRE, partición EFI y comandos `bcdboot`. Debe utilizarse con respaldo y
+confirmando primero las letras de unidad del equipo afectado.
+
 ## Documentación adicional
 
 - [Guía de uso](references/USAGE.md)
