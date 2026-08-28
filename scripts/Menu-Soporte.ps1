@@ -34,8 +34,6 @@ function Write-MobleyHeader {
     Write-Host '    ⠀⠀⠀⠀⠀⠀⠀⠀⠙⠻⣿⣿⣿⣿⣿⣿⣿⣿⠟⠁⠀⠀⠀⠀⠀⠀⠀⠀' -ForegroundColor Cyan
     Write-Host '    ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠙⠛⠛⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀' -ForegroundColor Cyan
     Write-Host ''
-    Write-Host '             MOBLEY TOOLKIT' -ForegroundColor Cyan
-    Write-Host ''
 }
 
 function Write-Info([string]$txt) {
