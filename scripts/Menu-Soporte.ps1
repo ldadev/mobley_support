@@ -18,7 +18,6 @@ function Write-Titulo([string]$txt, [string]$col = 'Cyan') {
 }
 
 function Write-MobleyHeader {
-    $anchoConsola = [Math]::Max(68, [Console]::WindowWidth)
     $lineasLogo = @(
         @{ Texto = '⠀⠀⠀⠀⠀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⠀⠀⠀⠀⠀⠀'; Color = 'Cyan' }
         @{ Texto = '⠀⠀⠀⠀⢠⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀'; Color = 'Cyan' }
@@ -37,16 +36,11 @@ function Write-MobleyHeader {
         @{ Texto = '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠙⠛⠛⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀'; Color = 'Cyan' }
     )
 
-    $lineasLogoNormalizadas = $lineasLogo | ForEach-Object {
-        @{ Texto = $_.Texto.Replace('⠀', ' '); Color = $_.Color }
-    }
-    $anchoLogo = ($lineasLogoNormalizadas | ForEach-Object { $_.Texto.Length } | Measure-Object -Maximum).Maximum
-    $margenIzquierdo = [Math]::Max(0, [Math]::Floor(($anchoConsola - $anchoLogo) / 2))
-    foreach ($lineaLogo in $lineasLogoNormalizadas) {
-        Write-Host ((' ' * $margenIzquierdo) + $lineaLogo.Texto) -ForegroundColor $lineaLogo.Color
+    foreach ($lineaLogo in $lineasLogo) {
+        Write-Host $lineaLogo.Texto -ForegroundColor $lineaLogo.Color
     }
     Write-Host ''
-    Write-Titulo 'MOBLEY TOOLKIT' -col Cyan
+    Write-Host '                         MOBLEY TOOLKIT' -ForegroundColor Cyan
     Write-Host ''
 }
 
