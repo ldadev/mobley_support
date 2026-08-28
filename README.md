@@ -72,7 +72,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\Auditar-Trafico.ps1" 
 Abre PowerShell y ejecuta:
 
 ```powershell
-irm "https://raw.githubusercontent.com/ldadev/mobley_support/main/scripts/Ejecutar-Soporte-GitHub.ps1" | iex
+irm "https://raw.githubusercontent.com/ldadev/mobley_toolkit/main/scripts/Ejecutar-Soporte-GitHub.ps1" | iex
 ```
 
 El comando descarga los archivos actuales en:
