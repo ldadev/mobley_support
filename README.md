@@ -119,8 +119,15 @@ Cada auditoría puede incluir:
 
 - `informe-de-soporte.html`: informe principal para revisión.
 - Archivos CSV, registros de ejecución y evidencias técnicas.
+- `impresiones-historicas.csv`: trabajos impresos registrados por Windows en el evento 307 de `PrintService/Operational`.
+- `estado-consumibles.csv`: estado técnico de las impresoras y disponibilidad del nivel de cartucho.
 - `hashes-sha256.csv`: manifiesto de integridad.
 - Un paquete ZIP junto a la carpeta de evidencias.
+
+El informe incluye impresoras instaladas, trabajos actuales, errores del
+servicio de impresión y el historial disponible en el Visor de eventos. El
+nivel de cartucho o tóner solo se muestra cuando lo publica el fabricante, el
+controlador o SNMP; de lo contrario aparece como `No publicado por Windows`.
 
 Con `-AutoEliminarAlCerrar`, las evidencias temporales se guardan en `%TEMP%`
 y se eliminan al cerrar; el paquete ZIP se conserva.

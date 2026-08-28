@@ -1963,6 +1963,8 @@ catch {
 }
 
 $eventosImpresion = @()
+$impresionesHistoricas = @()
+$consumiblesImpresion = @()
 try {
     $eventosImpresion = @(Get-WinEvent -FilterHashtable @{
         LogName   = 'Microsoft-Windows-PrintService/Admin'
@@ -1975,6 +1977,37 @@ try {
 }
 catch {
     Registrar-ErrorAuditoria 'Eventos de impresión' $_.Exception.Message
+}
+
+try {
+    $impresionesHistoricas = @(Get-WinEvent -FilterHashtable @{
+        LogName   = 'Microsoft-Windows-PrintService/Operational'
+        Id        = 307
+        StartTime = $inicioEventos
+    } -ErrorAction SilentlyContinue |
+        Select-Object @{Name = 'Fecha'; Expression = { $_.TimeCreated } },
+            Id, LevelDisplayName, ProviderName,
+            @{Name = 'DatosEvento'; Expression = { ($_.Properties | ForEach-Object { $_.Value }) -join ' | ' } },
+            Message |
+        Sort-Object Fecha -Descending)
+    $impresionesHistoricas |
+        Export-Csv (Join-Path $carpeta 'impresiones-historicas.csv') -NoTypeInformation -Encoding UTF8
+}
+catch {
+    Registrar-ErrorAuditoria 'Historial de impresiones' $_.Exception.Message
+}
+
+try {
+    $consumiblesImpresion = @(Get-CimInstance -ClassName Win32_Printer -ErrorAction SilentlyContinue |
+        Select-Object Name, Status, DetectedErrorState, ExtendedPrinterStatus,
+            PrinterStatus, LastErrorCode,
+            @{Name = 'NivelCartucho'; Expression = { 'No publicado por Windows' } },
+            @{Name = 'OrigenNivelCartucho'; Expression = { 'El nivel depende del fabricante, controlador o SNMP' } })
+    $consumiblesImpresion |
+        Export-Csv (Join-Path $carpeta 'estado-consumibles.csv') -NoTypeInformation -Encoding UTF8
+}
+catch {
+    Registrar-ErrorAuditoria 'Estado de consumibles de impresoras' $_.Exception.Message
 }
 
 $softwareInstalado = New-Object 'System.Collections.Generic.List[object]'
@@ -2730,6 +2763,7 @@ $cantidadEventosSeguridad = @($eventosSeguridad).Count
 $cantidadFallosAplicacion = @($eventosAplicaciones).Count
 $cantidadEventosKaspersky = @($eventosKaspersky).Count
 $cantidadEventosImpresion = @($eventosImpresion).Count
+$cantidadImpresionesHistoricas = @($impresionesHistoricas).Count
 $cantidadProcesosRed = @($resumenProcesos).Count
 $cantidadProcesosConsumo = @($procesosConsumo).Count
 $cantidadServiciosDetenidos = @($serviciosAutomaticosDetenidos).Count
@@ -2746,7 +2780,7 @@ $analisisResultados = @(
     '<h2>Guía de análisis de resultados</h2>'
     '<p>Lea primero esta guía y después confirme cada conclusión en la tabla o archivo indicado. Los números describen la ventana de captura; no son diagnósticos automáticos ni sustituyen la revisión del administrador.</p>'
     '<h3>1. Visor de eventos y estabilidad</h3>'
-    "<p>Se agruparon $cantidadEventosVisor grupos de eventos críticos o de error del sistema y de Application, $cantidadFallosAplicacion fallos recientes de aplicaciones, $cantidadEventosKaspersky eventos de Kaspersky, $cantidadEventosImpresion eventos del servicio de impresión y $cantidadEventosSeguridad eventos de seguridad, PowerShell, Defender o firewall. Revise proveedor, ID, nivel, hora, cantidad y mensaje: varios eventos del mismo proveedor en el mismo intervalo son más relevantes que un evento aislado.</p>"
+    "<p>Se agruparon $cantidadEventosVisor grupos de eventos críticos o de error del sistema y de Application, $cantidadFallosAplicacion fallos recientes de aplicaciones, $cantidadEventosKaspersky eventos de Kaspersky, $cantidadEventosImpresion eventos del servicio de impresión y $cantidadImpresionesHistoricas impresiones históricas registradas por Windows, además de $cantidadEventosSeguridad eventos de seguridad, PowerShell, Defender o firewall. Revise proveedor, ID, nivel, hora, cantidad y mensaje: varios eventos del mismo proveedor en el mismo intervalo son más relevantes que un evento aislado.</p>"
     '<ul><li>Confirme el evento en el Visor de eventos con la misma hora e ID, y compruebe si coincide con un reinicio, caída de red, instalación, inicio de sesión o ejecución de una aplicación.</li><li>Priorice errores repetidos, nuevos o coincidentes con síntomas del usuario. Un evento crítico aislado puede ser transitorio; la repetición y la correlación temporal aumentan su importancia.</li><li>Use <code>errores-eventos-sistema.csv</code>, <code>eventos-seguridad-powerShell-firewall.csv</code>, <code>fallos-aplicaciones.csv</code>, <code>eventos-controladores.csv</code>, <code>eventos-impresion.csv</code>, <code>eventos-kaspersky.csv</code>, <code>historial-confiabilidad.csv</code> y <code>amenazas-defender.csv</code> como evidencia.</li></ul>'
     '<h3>2. Procesos y aplicaciones</h3>'
     "<p>Se registraron $cantidadProcesosConsumo procesos con mayor consumo de memoria, $cantidadProcesosRed procesos asociados a conexiones TCP y $cantidadDetallesProcesos detalles enriquecidos de procesos observados. Compare nombre, PID, memoria, CPU, ruta, firma, destinos, puertos y duración entre muestras; el consumo alto por sí solo no implica malware.</p>"
@@ -2841,6 +2875,9 @@ $contenido = @(
     (Convertir-FragmentoHtml @($resultadoLimpiezaSpooler | Where-Object { $_ }) 'Resultado de la liberación de la cola de impresión' 'No se solicitó reiniciar o liberar la cola de impresión.')
     (Convertir-FragmentoHtml @($trabajosImpresion) 'Trabajos en las colas de impresión' 'No hay trabajos pendientes.')
     (Convertir-FragmentoHtml @($eventosImpresion | Select-Object -First 100) 'Eventos recientes de impresión' 'No se encontraron eventos de impresión en el periodo consultado.')
+    (Convertir-FragmentoHtml @($impresionesHistoricas | Select-Object -First 500) 'Impresiones históricas registradas por Windows' 'No se encontraron eventos 307 o el registro Operational no está habilitado.')
+    (Convertir-FragmentoHtml @($consumiblesImpresion) 'Estado de cartuchos y consumibles' 'No se obtuvo información de consumibles.')
+    "<p class='nota'><strong>Consumibles:</strong> Windows no ofrece un nivel universal de cartucho o tóner. Cuando el fabricante, controlador o SNMP no lo publica, el informe lo marca como <em>No publicado por Windows</em>; consulte la interfaz web o el panel del fabricante para el porcentaje real.</p>"
     (Convertir-FragmentoHtml @($licenciasMicrosoft) 'Licencias Microsoft publicadas por Windows' 'No se encontraron productos Microsoft con clave parcial registrada.')
     (Convertir-FragmentoHtml @($softwareInstalado) 'Inventario de software instalado')
     "<p class='nota'><strong>Licencias de terceros:</strong> Windows no publica un estado de licencia universal para todo el software. El inventario no demuestra que Kaspersky, Chrome u otros productos estén licenciados; deben comprobarse en la consola o portal de cada fabricante.</p>"
