@@ -17,6 +17,10 @@
 
 -->
 
+<p align="center">
+	<img src="scripts/assets/mobley-toolkit.png" alt="Mobley Toolkit" width="306">
+</p>
+
 <p align="center"><strong>MOBLEY TOOLKIT</strong></p>
 
 # Mobley Toolkit
