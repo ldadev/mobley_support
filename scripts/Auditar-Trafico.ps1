@@ -105,15 +105,16 @@ function Test-IPPublica {
 
 function Convertir-FragmentoHtml {
     param(
-        [AllowNull()][AllowEmptyCollection()][object[]]$Datos,
+        [AllowNull()][AllowEmptyCollection()][object[]]$Datos = @(),
         [Parameter(Mandatory)][string]$Titulo,
         [string]$Vacio = 'Sin datos.'
     )
 
-    if ($null -eq $Datos -or $Datos.Count -eq 0) {
+    $datosValidos = @($Datos | Where-Object { $null -ne $_ })
+    if ($datosValidos.Count -eq 0) {
         return "<h2>$Titulo</h2><p>$Vacio</p>"
     }
-    return ($Datos | ConvertTo-Html -Fragment -PreContent "<h2>$Titulo</h2>")
+    return ($datosValidos | ConvertTo-Html -Fragment -PreContent "<h2>$Titulo</h2>")
 }
 
 function Get-ResumenDirectorio {
