@@ -15,9 +15,6 @@
 		⠀⠀⠀⠀⠀⠀⠀⠀⠙⠻⣿⣿⣿⣿⣿⣿⣿⣿⠟⠁⠀⠀⠀⠀⠀⠀⠀⠀
 		⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠙⠛⠛⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 
-			    MOBLEY TOOLKIT
--->
-
 <p align="center"><strong>MOBLEY TOOLKIT</strong></p>
 
 # Mobley Toolkit
