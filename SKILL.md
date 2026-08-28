@@ -20,12 +20,10 @@ personal documents or download folders.
 - `scripts/Ejecutar-Soporte.cmd`: elevated interactive launcher with a styled
   menu (icons, confirm prompts, colored status markers, update, disk
   optimization, and official license-status actions).
-- `scripts/Ejecutar-Soporte-Drive.ps1`: Google Drive downloader and launcher.
 - `scripts/Ejecutar-Soporte-GitHub.ps1`: GitHub downloader and launcher.
 - `scripts/launcher.c`: C source for `Soporte-PC.exe`, a native Windows binary
   that runs the GitHub bootstrap command without opening PowerShell manually.
 - `Soporte-PC.exe`: compiled double-clickable launcher (repo root).
-- `references/drive.txt`: current Drive links and direct execution command.
 - `references/github.txt`: current GitHub links and direct execution command.
 - `references/USAGE.md`: operating and deployment guide.
 
@@ -223,7 +221,6 @@ Known PS 5.1 parser pitfalls seen in this toolkit:
 
 ## Distribution
 
-For Google Drive, use the IDs documented in `references/drive.txt`.
 For GitHub (`https://github.com/ldadev/mobley_support.git`), use the URLs documented in `references/github.txt` or prefer raw URLs:
 
 ```text
@@ -252,7 +249,6 @@ When changing any bundled operational file:
 1. Keep the source and skill copies synchronized.
 2. Preserve all four modes and report compatibility.
 3. Validate PowerShell syntax.
-4. Re-upload changed Drive artifacts if Drive deployment is in use.
-5. Confirm that the direct download returns the expected file rather than an
+4. Confirm that the direct download returns the expected file rather than an
    HTML login or confirmation page.
 
