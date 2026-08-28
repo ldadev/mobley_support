@@ -85,6 +85,23 @@ function Start-CleanupDownloadedToolkit {
     ) | Out-Null
 }
 
+function Install-OfficeToolkit {
+    $directorioRaiz = Split-Path -Parent $PSScriptRoot
+    $instalador = Join-Path $directorioRaiz 'office\setup.exe'
+    $configuracion = Join-Path $directorioRaiz 'office\configuration-Office-x64.xml'
+
+    if (-not (Test-Path -LiteralPath $instalador) -or -not (Test-Path -LiteralPath $configuracion)) {
+        throw 'No se encontraron office\setup.exe y office\configuration-Office-x64.xml. Use la copia completa del toolkit.'
+    }
+
+    Write-Info 'Iniciando instalacion de Office con la configuracion incluida...'
+    $proceso = Start-Process -FilePath $instalador -WorkingDirectory (Split-Path -Parent $instalador) -ArgumentList @('/configure', $configuracion) -Wait -PassThru
+    if ($proceso.ExitCode -ne 0) {
+        throw "El instalador de Office termino con codigo $($proceso.ExitCode)."
+    }
+    Write-Ok 'Instalacion de Office finalizada correctamente.'
+}
+
 $opciones = [ordered]@{
     '1' = @{ Icon = '[R]'; Label = 'Diagnostico Rapido'; Desc = '(5 min - Estado general, red basica y hardware)'; Params = @{ Modo = 'Rapido'; AutoEliminarAlCerrar = $true } }
     '2' = @{ Icon = '[C]'; Label = 'Diagnostico Completo'; Desc = '(Extenso - SMART, parches, DISM/SFC, eventos)'; Params = @{ Modo = 'Completo'; IncluirVerificacionSistema = $true; AutoEliminarAlCerrar = $true } }
@@ -96,6 +113,7 @@ $opciones = [ordered]@{
     '8' = @{ Icon = '[D]'; Label = 'Desfragmentar Discos'; Desc = '(Optimiza las unidades fijas detectadas)'; Params = @{ DesfragmentarDiscos = $true; AutoEliminarAlCerrar = $true } }
     '9' = @{ Icon = '[L]'; Label = 'Licencias'; Desc = '(Consulta activacion oficial de Windows y Microsoft)'; Params = @{ MostrarLicencias = $true; AutoEliminarAlCerrar = $true } }
     '10' = @{ Icon = '[B]'; Label = 'Comparar Auditoria'; Desc = '(Compara red, puertos, servicios y DNS con otra auditoria)'; Params = $null }
+    '11' = @{ Icon = '[F]'; Label = 'Instalar Office'; Desc = '(Usa el instalador incluido en la carpeta office)'; Params = $null }
 }
 
 while ($true) {
@@ -183,10 +201,15 @@ while ($true) {
         Write-Host ''
 
         try {
-            $paramsSplat = $sel.Params
-            & $script @paramsSplat
-            Write-Host ''
-            Write-Ok 'Proceso completado exitosamente.'
+            if ($opc -eq '11') {
+                Install-OfficeToolkit
+            }
+            else {
+                $paramsSplat = $sel.Params
+                & $script @paramsSplat
+                Write-Host ''
+                Write-Ok 'Proceso completado exitosamente.'
+            }
         }
         catch {
             Write-Host ''
@@ -197,7 +220,7 @@ while ($true) {
     }
     else {
         Write-Host ''
-        Write-Warn ('"{0}" no es una opcion valida. Ingrese un numero del 1 al 10, o 0 para salir.' -f $opc)
+        Write-Warn ('"{0}" no es una opcion valida. Ingrese un numero del 1 al 11, o 0 para salir.' -f $opc)
         Write-Pausar
     }
 }

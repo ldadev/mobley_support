@@ -146,14 +146,17 @@ Para evitar que se abra el navegador automáticamente:
 - `scripts/Ejecutar-Soporte-GitHub.ps1`: descarga desde GitHub.
 - `Soporte-PC.exe`: lanzador ejecutable para usuarios que prefieren doble clic.
 
+El menú también incluye la opción `11. Instalar Office`, que ejecuta el
+instalador de `office/` con su archivo de configuración.
+
 ## Recursos adicionales
 
 ### Instalador de Office
 
 El directorio `office/` contiene el Office Deployment Tool y la configuración
-actual para instalar Office de 64 bits en español. La configuración incluida
-usa el producto `ProPlus2024Volume` y el canal `PerpetualVL2024`; la licencia
-debe corresponder al equipo y a la organización.
+para instalar **Microsoft 365 Apps** de 64 bits en español. La configuración
+usa el producto `O365ProPlusRetail` y el canal `Current`; se requiere una
+suscripción válida de Microsoft 365 para activar las aplicaciones.
 
 Abre PowerShell como administrador, entra en la carpeta `office` y ejecuta:
 

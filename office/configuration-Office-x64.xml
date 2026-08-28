@@ -10,13 +10,13 @@
 
 <Configuration>
 
-  <Add OfficeClientEdition="64" Channel="PerpetualVL2024">
-    <Product ID="ProPlus2024Volume">
+  <Add OfficeClientEdition="64" Channel="Current">
+    <Product ID="O365ProPlusRetail">
       <Language ID="es-es" />
     </Product>
   </Add>
   <Display Level="Full" AcceptEULA="TRUE" />
-  <!--  <Updates Enabled="TRUE" Channel="Current" /> -->
+  <Updates Enabled="TRUE" Channel="Current" />
 
   <!--  <Display Level="None" AcceptEULA="TRUE" />  -->
 
