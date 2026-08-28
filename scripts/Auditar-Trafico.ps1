@@ -1545,9 +1545,15 @@ catch {
     Registrar-ErrorAuditoria 'Configuración RDP' $_.Exception.Message
 }
 
-$cambiosArchivoPendientes = Get-ItemPropertyValue `
-    'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager' `
-    -Name 'PendingFileRenameOperations' -ErrorAction SilentlyContinue
+$cambiosArchivoPendientes = $null
+try {
+    $cambiosArchivoPendientes = Get-ItemPropertyValue `
+        'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager' `
+        -Name 'PendingFileRenameOperations' -ErrorAction Stop
+}
+catch {
+    Registrar-ErrorAuditoria 'Reinicio pendiente' $_.Exception.Message
+}
 $reinicioPendiente = (
     (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending') -or
     (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired') -or
