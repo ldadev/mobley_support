@@ -85,6 +85,7 @@ $opciones = [ordered]@{
 while ($true) {
     Clear-Host
     Write-Host ''
+    Write-MobleyHeader
     Write-Titulo 'MOBLEY TOOLKIT' -col Cyan
     Write-Titulo 'DIAGNOSTICO Y SOPORTE PC' -col Cyan
     Write-Host ''
