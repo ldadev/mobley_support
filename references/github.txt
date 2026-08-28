@@ -1,0 +1,14 @@
+REPOSITORIO GITHUB PUBLICO
+https://github.com/ldadev/mobley_support.git
+
+EJECUTABLE DIRECTO (SIN ABRIR POWERSHELL)
+Puedes descargar y hacer doble clic en `Soporte-PC.exe` directamente desde la raíz del repositorio o usando este enlace directo:
+https://raw.githubusercontent.com/ldadev/mobley_support/main/Soporte-PC.exe
+
+RUTAS RAW DE ARCHIVOS
+Auditar-Trafico.ps1         --> https://raw.githubusercontent.com/ldadev/mobley_support/main/scripts/Auditar-Trafico.ps1
+Ejecutar-Soporte.cmd        --> https://raw.githubusercontent.com/ldadev/mobley_support/main/scripts/Ejecutar-Soporte.cmd
+Ejecutar-Soporte-GitHub.ps1 --> https://raw.githubusercontent.com/ldadev/mobley_support/main/scripts/Ejecutar-Soporte-GitHub.ps1
+
+COMANDO CORTO ALTERNATIVO PARA POWERSHELL
+irm "https://raw.githubusercontent.com/ldadev/mobley_support/main/scripts/Ejecutar-Soporte-GitHub.ps1" | iex
