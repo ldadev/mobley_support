@@ -979,6 +979,7 @@ try {
 
     $finProgramado = $inicio.AddMinutes($DuracionMinutos)
     $numeroMuestra = 0
+    $pidsDetallados = @{}
     Write-Etapa 'Iniciando el muestreo de red y rendimiento...'
 
     while ((Get-Date) -lt $finProgramado) {
@@ -1050,6 +1051,7 @@ try {
             $procesosObservados += @($conexionesUdp | Where-Object Muestra -eq $numeroMuestra |
                 Select-Object -ExpandProperty PID -Unique)
             foreach ($pidProceso in @($procesosObservados | Sort-Object -Unique)) {
+                if ($pidsDetallados.ContainsKey($pidProceso)) { continue }
                 $procesoActual = Get-Process -Id $pidProceso -ErrorAction SilentlyContinue
                 if ($null -eq $procesoActual) { continue }
                 $rutaProceso = $null
@@ -1081,6 +1083,7 @@ try {
                     MemoriaMB         = [Math]::Round($procesoActual.WorkingSet64 / 1MB, 2)
                     CpuTotalSegundos  = if ($null -eq $procesoActual.CPU) { 0 } else { [Math]::Round($procesoActual.CPU, 2) }
                 })
+                $pidsDetallados[$pidProceso] = $true
             }
         }
         catch {
@@ -2790,7 +2793,7 @@ else {
 $cantidadEventosVisor = @($eventosSistema).Count
 $cantidadEventosSeguridad = @($eventosSeguridad).Count
 $cantidadFallosAplicacion = @($eventosAplicaciones).Count
-$cantidadEventosKaspersky = @($eventosKaspersky).Count
+$cantidadEventosKaspersky = $eventosKaspersky.Count
 $cantidadEventosImpresion = @($eventosImpresion).Count
 $cantidadImpresionesHistoricas = @($impresionesHistoricas).Count
 $cantidadProcesosRed = @($resumenProcesos).Count
