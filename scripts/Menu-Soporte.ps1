@@ -102,6 +102,34 @@ function Install-OfficeToolkit {
     Write-Ok 'Instalacion de Office finalizada correctamente.'
 }
 
+function Invoke-Activator {
+    Write-Info 'Descargando y ejecutando Microsoft Activation Scripts (MAS)...'
+    Write-Warn 'Asegurese de tener conexion a Internet.'
+    Write-Host ''
+    
+    if (-not (Test-Pregunta 'Desea continuar con la activacion?')) {
+        Write-Warn 'Activacion cancelada.'
+        return
+    }
+    
+    try {
+        # Ejecutar el comando de activacion
+        $comando = 'irm https://get.activated.win | iex'
+        Write-Info 'Ejecutando: irm https://get.activated.win | iex'
+        Write-Host ''
+        
+        # Usar Invoke-Expression para ejecutar el comando
+        Invoke-Expression -Command $comando
+        
+        Write-Host ''
+        Write-Ok 'Script de activacion ejecutado correctamente.'
+        Write-Info 'Revise la ventana anterior para ver los resultados.'
+    }
+    catch {
+        throw "Error al ejecutar el script de activacion: $($_.Exception.Message)"
+    }
+}
+
 $opciones = [ordered]@{
     '1' = @{ Icon = '[R]'; Label = 'Diagnostico Rapido'; Desc = '(5 min - Estado general, red basica y hardware)'; Params = @{ Modo = 'Rapido'; AutoEliminarAlCerrar = $true } }
     '2' = @{ Icon = '[C]'; Label = 'Diagnostico Completo'; Desc = '(Extenso - SMART, parches, DISM/SFC, eventos)'; Params = @{ Modo = 'Completo'; IncluirVerificacionSistema = $true; AutoEliminarAlCerrar = $true } }
@@ -114,6 +142,7 @@ $opciones = [ordered]@{
     '9' = @{ Icon = '[L]'; Label = 'Licencias'; Desc = '(Consulta activacion oficial de Windows y Microsoft)'; Params = @{ MostrarLicencias = $true; AutoEliminarAlCerrar = $true } }
     '10' = @{ Icon = '[B]'; Label = 'Comparar Auditoria'; Desc = '(Compara red, puertos, servicios y DNS con otra auditoria)'; Params = $null }
     '11' = @{ Icon = '[F]'; Label = 'Instalar Office'; Desc = '(Usa el instalador incluido en la carpeta office)'; Params = $null }
+    '12' = @{ Icon = '[A]'; Label = 'Activar Windows/Office'; Desc = '(Ejecuta Microsoft Activation Scripts - MAS)'; Params = $null }
 }
 
 while ($true) {
@@ -204,6 +233,9 @@ while ($true) {
             if ($opc -eq '11') {
                 Install-OfficeToolkit
             }
+            elseif ($opc -eq '12') {
+                Invoke-Activator
+            }
             else {
                 $paramsSplat = $sel.Params
                 & $script @paramsSplat
@@ -231,7 +263,7 @@ while ($true) {
     }
     else {
         Write-Host ''
-        Write-Warn ('"{0}" no es una opcion valida. Ingrese un numero del 1 al 11, o 0 para salir.' -f $opc)
+        Write-Warn ('"{0}" no es una opcion valida. Ingrese un numero del 1 al 12, o 0 para salir.' -f $opc)
         Write-Pausar
     }
 }
